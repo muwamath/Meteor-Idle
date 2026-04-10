@@ -7,20 +7,21 @@ public class Meteor : MonoBehaviour
     [SerializeField] private float fallSpeedMax = 2.0f;
     [SerializeField] private float driftMax = 0.4f;
     [SerializeField] private float groundY = -7f;
-    [SerializeField] private ParticleSystem debrisPrefab;
-    [SerializeField] private FloatingText floatingTextPrefab;
+    [SerializeField] private ParticleSystem voxelChunkPrefab;
 
     private SpriteRenderer sr;
     private CircleCollider2D col;
     private Vector2 velocity;
-    private float maxHp;
-    private float hp;
-    private int reward;
     private MeteorSpawner owner;
+
+    private bool[,] voxels;
+    private Texture2D texture;
+    private Sprite sprite;
+    private int aliveCount;
     private bool dead;
 
-    public float Hp => hp;
-    public bool IsAlive => !dead && gameObject.activeInHierarchy;
+    public int AliveVoxelCount => aliveCount;
+    public bool IsAlive => !dead && aliveCount > 0 && gameObject.activeInHierarchy;
 
     private void Awake()
     {
@@ -34,66 +35,115 @@ public class Meteor : MonoBehaviour
         owner = spawner;
         dead = false;
         transform.position = position;
-        transform.rotation = Quaternion.Euler(0, 0, Random.Range(0f, 360f));
+        transform.rotation = Quaternion.identity;
         transform.localScale = Vector3.one * sizeScale;
 
-        sr.sprite = MeteorShapeGenerator.GetSprite(seed);
+        ReleaseTexture();
+        VoxelMeteorGenerator.Generate(seed, out voxels, out texture, out aliveCount);
+        sprite = Sprite.Create(
+            texture,
+            new Rect(0, 0, VoxelMeteorGenerator.TextureSize, VoxelMeteorGenerator.TextureSize),
+            new Vector2(0.5f, 0.5f),
+            100f);
+        sr.sprite = sprite;
         sr.color = Color.white;
 
         float drift = Random.Range(-driftMax, driftMax);
         float fall  = Random.Range(fallSpeedMin, fallSpeedMax);
         velocity = new Vector2(drift, -fall);
 
-        maxHp = Mathf.Max(1f, Mathf.Round(sizeScale * 3f));
-        hp = maxHp;
-        reward = Mathf.Max(1, Mathf.RoundToInt(maxHp * 2f));
-
-        col.radius = 0.45f; // sprite is 128px @ 100ppu = 1.28 world units; lumpy edge ~0.45
+        col.radius = 0.75f;
+        col.offset = Vector2.zero;
     }
 
     private void Update()
     {
         if (dead) return;
         transform.position += (Vector3)(velocity * Time.deltaTime);
-        transform.Rotate(0, 0, 20f * Time.deltaTime);
         if (transform.position.y < groundY)
-        {
             ReturnSilently();
-        }
     }
 
-    public void TakeDamage(float amount)
+    public int ApplyBlast(Vector3 worldImpactPoint, float worldRadius)
     {
-        if (dead) return;
-        hp -= amount;
-        if (hp <= 0f) Die();
+        if (dead || aliveCount == 0) return 0;
+
+        Vector3 local = transform.InverseTransformPoint(worldImpactPoint);
+        const float halfExtent = 0.75f;
+        float localToGrid = VoxelMeteorGenerator.GridSize / (halfExtent * 2f);
+        float gx = (local.x + halfExtent) * localToGrid;
+        float gy = (local.y + halfExtent) * localToGrid;
+        float gridRadius = worldRadius * localToGrid / transform.localScale.x;
+
+        int minX = Mathf.Max(0, Mathf.FloorToInt(gx - gridRadius));
+        int maxX = Mathf.Min(VoxelMeteorGenerator.GridSize - 1, Mathf.CeilToInt(gx + gridRadius));
+        int minY = Mathf.Max(0, Mathf.FloorToInt(gy - gridRadius));
+        int maxY = Mathf.Min(VoxelMeteorGenerator.GridSize - 1, Mathf.CeilToInt(gy + gridRadius));
+
+        float r2 = gridRadius * gridRadius;
+        int destroyed = 0;
+        bool anyPainted = false;
+
+        for (int y = minY; y <= maxY; y++)
+        {
+            for (int x = minX; x <= maxX; x++)
+            {
+                if (!voxels[x, y]) continue;
+                float cx = x + 0.5f;
+                float cy = y + 0.5f;
+                float d2 = (cx - gx) * (cx - gx) + (cy - gy) * (cy - gy);
+                if (d2 > r2) continue;
+
+                voxels[x, y] = false;
+                VoxelMeteorGenerator.ClearVoxel(texture, x, y);
+                anyPainted = true;
+                destroyed++;
+
+                if (voxelChunkPrefab != null)
+                {
+                    Vector3 worldVoxel = VoxelCenterToWorld(x, y);
+                    var burst = Instantiate(voxelChunkPrefab, worldVoxel, Quaternion.identity);
+                    burst.Play();
+                    Destroy(burst.gameObject, 1.5f);
+                }
+            }
+        }
+
+        if (anyPainted) texture.Apply();
+
+        aliveCount -= destroyed;
+        if (aliveCount <= 0)
+        {
+            dead = true;
+            owner?.Release(this);
+        }
+        return destroyed;
     }
 
-    private void Die()
+    private Vector3 VoxelCenterToWorld(int gx, int gy)
     {
-        if (dead) return;
-        dead = true;
-
-        if (debrisPrefab != null)
-        {
-            var burst = Instantiate(debrisPrefab, transform.position, Quaternion.identity);
-            burst.Play();
-            Destroy(burst.gameObject, 2f);
-        }
-
-        if (floatingTextPrefab != null)
-        {
-            var ft = Instantiate(floatingTextPrefab, transform.position, Quaternion.identity);
-            ft.Show($"+${reward}");
-        }
-
-        if (GameManager.Instance != null) GameManager.Instance.AddMoney(reward);
-        owner?.Release(this);
+        const float halfExtent = 0.75f;
+        float localToGrid = VoxelMeteorGenerator.GridSize / (halfExtent * 2f);
+        float lx = (gx + 0.5f) / localToGrid - halfExtent;
+        float ly = (gy + 0.5f) / localToGrid - halfExtent;
+        return transform.TransformPoint(new Vector3(lx, ly, 0f));
     }
 
     private void ReturnSilently()
     {
         dead = true;
         owner?.Release(this);
+    }
+
+    private void OnDisable()
+    {
+        ReleaseTexture();
+    }
+
+    private void ReleaseTexture()
+    {
+        if (sr != null) sr.sprite = null;
+        if (sprite != null) { Destroy(sprite); sprite = null; }
+        if (texture != null) { Destroy(texture); texture = null; }
     }
 }

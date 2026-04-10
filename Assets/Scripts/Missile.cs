@@ -5,11 +5,11 @@ public class Missile : MonoBehaviour
 {
     [SerializeField] private float lifetime = 5f;
     [SerializeField] private ParticleSystem explosionPrefab;
-    [SerializeField] private TrailRenderer trail;
+    [SerializeField] private FloatingText floatingTextPrefab;
 
     private Rigidbody2D rb;
     private CircleCollider2D col;
-    private float damage;
+    private float impactRadius;
     private float blastRadius;
     private float despawnAt;
     private Turret owner;
@@ -23,21 +23,16 @@ public class Missile : MonoBehaviour
         col.isTrigger = true;
     }
 
-    public void Launch(Turret turret, Vector3 position, Vector2 velocity, float damage, float blastRadius)
+    public void Launch(Turret turret, Vector3 position, Vector2 velocity, float damageStat, float blastStat)
     {
         owner = turret;
-        this.damage = damage;
-        this.blastRadius = blastRadius;
+        impactRadius = 0.05f + 0.02f * Mathf.Max(0f, damageStat);
+        blastRadius = Mathf.Max(0f, blastStat);
         transform.position = position;
         float angle = Mathf.Atan2(velocity.y, velocity.x) * Mathf.Rad2Deg;
-        transform.rotation = Quaternion.Euler(0, 0, angle - 90f); // missile art points up
+        transform.rotation = Quaternion.Euler(0, 0, angle - 90f);
         rb.linearVelocity = velocity;
         despawnAt = Time.time + lifetime;
-        if (trail != null)
-        {
-            trail.Clear();
-            trail.emitting = true;
-        }
     }
 
     private void Update()
@@ -50,16 +45,18 @@ public class Missile : MonoBehaviour
         var meteor = other.GetComponentInParent<Meteor>();
         if (meteor == null || !meteor.IsAlive) return;
 
-        meteor.TakeDamage(damage);
+        float totalRadius = impactRadius + blastRadius;
+        int destroyed = meteor.ApplyBlast(transform.position, totalRadius);
 
-        if (blastRadius > 0.01f)
+        if (destroyed > 0)
         {
-            var hits = Physics2D.OverlapCircleAll(transform.position, blastRadius);
-            foreach (var h in hits)
+            if (GameManager.Instance != null)
+                GameManager.Instance.AddMoney(destroyed);
+
+            if (floatingTextPrefab != null)
             {
-                if (h == other) continue;
-                var m = h.GetComponentInParent<Meteor>();
-                if (m != null && m.IsAlive) m.TakeDamage(damage * 0.75f);
+                var ft = Instantiate(floatingTextPrefab, transform.position, Quaternion.identity);
+                ft.Show($"+${destroyed}");
             }
         }
 
@@ -75,7 +72,6 @@ public class Missile : MonoBehaviour
 
     private void Despawn()
     {
-        if (trail != null) trail.emitting = false;
         rb.linearVelocity = Vector2.zero;
         owner?.ReleaseMissile(this);
     }
