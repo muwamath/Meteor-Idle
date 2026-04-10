@@ -109,45 +109,6 @@ public class Meteor : MonoBehaviour
             }
         }
 
-        // Safety net: a confirmed missile collision should always destroy at least one voxel.
-        // The strict radius check can miss when the impact point sits just outside the voxel
-        // grid (collider rim vs grid geometry mismatch at small starting radii).
-        if (destroyed == 0)
-        {
-            int nearestX = -1, nearestY = -1;
-            float nearestD2 = float.MaxValue;
-            for (int y = 0; y < VoxelMeteorGenerator.GridSize; y++)
-            {
-                for (int x = 0; x < VoxelMeteorGenerator.GridSize; x++)
-                {
-                    if (!voxels[x, y]) continue;
-                    float cx = x + 0.5f;
-                    float cy = y + 0.5f;
-                    float d2 = (cx - gx) * (cx - gx) + (cy - gy) * (cy - gy);
-                    if (d2 < nearestD2)
-                    {
-                        nearestD2 = d2;
-                        nearestX = x;
-                        nearestY = y;
-                    }
-                }
-            }
-            if (nearestX >= 0)
-            {
-                voxels[nearestX, nearestY] = false;
-                VoxelMeteorGenerator.ClearVoxel(texture, nearestX, nearestY);
-                anyPainted = true;
-                destroyed = 1;
-                if (voxelChunkPrefab != null)
-                {
-                    Vector3 worldVoxel = VoxelCenterToWorld(nearestX, nearestY);
-                    var burst = Instantiate(voxelChunkPrefab, worldVoxel, Quaternion.identity);
-                    burst.Play();
-                    Destroy(burst.gameObject, 1.5f);
-                }
-            }
-        }
-
         if (anyPainted) texture.Apply();
 
         aliveCount -= destroyed;

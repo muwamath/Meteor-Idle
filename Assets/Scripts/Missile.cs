@@ -26,7 +26,9 @@ public class Missile : MonoBehaviour
     public void Launch(Turret turret, Vector3 position, Vector2 velocity, float damageStat, float blastStat)
     {
         owner = turret;
-        impactRadius = 0.05f + 0.02f * Mathf.Max(0f, damageStat);
+        // Starting 0.18 guarantees ≥ sqrt(2)/2 grid units at every sprite scale (0.7–1.6),
+        // so the strict radius check always catches at least one voxel on a solid hit.
+        impactRadius = 0.14f + 0.04f * Mathf.Max(0f, damageStat);
         blastRadius = Mathf.Max(0f, blastStat);
         transform.position = position;
         float angle = Mathf.Atan2(velocity.y, velocity.x) * Mathf.Rad2Deg;

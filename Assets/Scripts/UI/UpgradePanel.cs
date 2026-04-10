@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
@@ -10,6 +11,7 @@ public class UpgradePanel : MonoBehaviour
     [SerializeField] private Transform buttonParent;
 
     private readonly List<UpgradeButton> buttons = new List<UpgradeButton>();
+    private Action<int> moneyListener;
 
     private void Start()
     {
@@ -22,11 +24,18 @@ public class UpgradePanel : MonoBehaviour
             buttons.Add(btn);
         }
 
+        moneyListener = _ => RefreshAll();
         if (GameManager.Instance != null)
-            GameManager.Instance.OnMoneyChanged += _ => RefreshAll();
+            GameManager.Instance.OnMoneyChanged += moneyListener;
 
         stats.ResetRuntime();
         RefreshAll();
+    }
+
+    private void OnDestroy()
+    {
+        if (moneyListener != null && GameManager.Instance != null)
+            GameManager.Instance.OnMoneyChanged -= moneyListener;
     }
 
     private void OnClicked(StatId id)

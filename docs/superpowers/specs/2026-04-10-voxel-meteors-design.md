@@ -213,7 +213,7 @@ The 5 `TurretStats` stats stay in place with starting values unchanged. Reinterp
 |---|---|---|
 | Fire Rate | shots/sec | shots/sec (unchanged) |
 | Missile Speed | units/sec | units/sec (unchanged) |
-| **Damage** | HP per hit | **Impact radius in world units** — formula: `impactRadius = 0.05 + 0.02 * CurrentValue`. At starting `Damage=1` → 0.07 units → destroys ~1 voxel at the point of impact. At `Damage=10` → 0.25 units → ~3×3 cluster. |
+| **Damage** | HP per hit | **Impact radius in world units** — formula: `impactRadius = 0.14 + 0.04 * CurrentValue`. At starting `Damage=1` → 0.18 units → destroys 1–4 voxels per solid hit depending on sub-cell geometry. At `Damage=10` → 0.54 units → a large cluster (7×7 area at scale 1). The starting radius is sized so gridRadius ≥ √2/2 at the largest meteor scale (1.6), guaranteeing a solid hit (not a legitimate pass-through-hole) always catches at least one voxel. Earlier drafts used `0.05 + 0.02 * CurrentValue` which was too small to reach any cell center from an arbitrary impact point. |
 | **Blast Radius** | Splash damage radius | **Additive splash radius** — added to `impactRadius`. Total voxel destruction radius = `impactRadius + blastRadius`. Starting `blastRadius=0` → no splash beyond the impact. |
 | Accuracy | Miss angle wobble | unchanged |
 
