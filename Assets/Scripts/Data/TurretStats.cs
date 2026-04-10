@@ -33,7 +33,7 @@ public class TurretStats : ScriptableObject
     public Stat missileSpeed = new Stat { id = StatId.MissileSpeed, displayName = "Missile Speed", baseValue = 4f,   perLevelAdd = 0.6f,  baseCost = 15 };
     public Stat damage     = new Stat { id = StatId.Damage,      displayName = "Damage",       baseValue = 1f,   perLevelAdd = 1f,    baseCost = 20 };
     public Stat accuracy   = new Stat { id = StatId.Accuracy,    displayName = "Accuracy",     baseValue = 0.5f, perLevelAdd = 0.04f, baseCost = 25 };
-    public Stat blastRadius = new Stat { id = StatId.BlastRadius, displayName = "Blast Radius", baseValue = 0f,   perLevelAdd = 0.25f, baseCost = 40 };
+    public Stat blastRadius = new Stat { id = StatId.BlastRadius, displayName = "Blast Radius", baseValue = 0.10f, perLevelAdd = 0.25f, baseCost = 40 };
 
     public event Action OnChanged;
 
