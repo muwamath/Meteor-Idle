@@ -73,7 +73,16 @@ public class Meteor : MonoBehaviour
         float localToGrid = VoxelMeteorGenerator.GridSize / (halfExtent * 2f);
         float gx = (local.x + halfExtent) * localToGrid;
         float gy = (local.y + halfExtent) * localToGrid;
-        float gridRadius = worldRadius * localToGrid / transform.localScale.x;
+        // Clamp to the valid cell-center range so rim-edge impacts snap onto the
+        // nearest column/row instead of landing outside the grid. Legitimate
+        // pass-through-hole misses still return 0 because the cell check still
+        // requires voxels[x,y] == true.
+        gx = Mathf.Clamp(gx, 0.5f, VoxelMeteorGenerator.GridSize - 0.5f);
+        gy = Mathf.Clamp(gy, 0.5f, VoxelMeteorGenerator.GridSize - 0.5f);
+        // Scale-invariant: the blast covers the same number of grid cells on any
+        // size meteor. Without this, big meteors get proportionally smaller blasts
+        // (in grid units) and miss outer columns that small meteors would hit.
+        float gridRadius = worldRadius * localToGrid;
 
         int minX = Mathf.Max(0, Mathf.FloorToInt(gx - gridRadius));
         int maxX = Mathf.Min(VoxelMeteorGenerator.GridSize - 1, Mathf.CeilToInt(gx + gridRadius));
