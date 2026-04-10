@@ -145,5 +145,4 @@ MonoBehaviour:
   fallSpeedMax: 2
   driftMax: 0.4
   groundY: -7
-  debrisPrefab: {fileID: 4872757474425155906, guid: 2f8ec547c3e534e389bc9a752d9377fe, type: 3}
-  floatingTextPrefab: {fileID: 9160137815721794486, guid: a747c6ea653b14cdfb23a4f142f86ce2, type: 3}
+  voxelChunkPrefab: {fileID: 4872757474425155906, guid: 2f8ec547c3e534e389bc9a752d9377fe, type: 3}
