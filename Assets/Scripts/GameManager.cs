@@ -40,4 +40,10 @@ public class GameManager : MonoBehaviour
         OnMoneyChanged?.Invoke(Money);
         return true;
     }
+
+    public void SetMoney(int value)
+    {
+        Money = Mathf.Max(0, value);
+        OnMoneyChanged?.Invoke(Money);
+    }
 }
