@@ -1,6 +1,6 @@
 # Meteor Idle — Iteration Roadmap
 
-Living document. Last revised: 2026-04-11.
+Living document. Last revised: 2026-04-11 (Iter 0 shipped).
 
 This is the ordered plan for the next several iterations, pulled from `todo.md` (sections above `# Future`). Each iteration is a branch (`iter/<name>`) with its own spec + plan when it's large enough to warrant one. Sized for the project's per-branch overhead (tests, play verify, code-reviewer, WebGL deploy).
 
@@ -35,7 +35,7 @@ Order rationale:
 
 ---
 
-## Iter 0 — Aim fixes (Bundle A)
+## Iter 0 — Aim fixes (Bundle A) ✅ shipped 2026-04-11
 
 **Branch:** `iter/aim-fixes`
 **Size:** half-day, no formal spec needed
