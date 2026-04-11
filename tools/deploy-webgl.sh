@@ -27,26 +27,36 @@ SOURCE_SHA=$(git rev-parse --short HEAD)
 SOURCE_BRANCH=$(git rev-parse --abbrev-ref HEAD)
 
 # Identity-leak check on what we're about to publish. Hard gate per CLAUDE.md.
+# build/ is gitignored so identity-scrub.py's git-based modes don't cover it;
+# we grep the build output directly, using the same comment/blank-line
+# stripping that identity-scrub.py uses internally. A blank pattern line
+# matches every line of every file (100% false positives) so stripping is
+# mandatory, not cosmetic.
 echo "==> Running identity scrub on build output"
-pushd "${BUILD_DIR}" >/dev/null
-if ! git -C "${REPO_ROOT}" ls-files --error-unmatch "${BUILD_DIR}" >/dev/null 2>&1; then
-    # build/ is gitignored, so identity-scrub.py's git-based modes don't apply.
-    # Fall back to grepping the build output directly against the patterns file.
-    PATTERNS_FILE="${REPO_ROOT}/.claude-identity-scrub"
-    if [[ ! -f "${PATTERNS_FILE}" ]]; then
-        echo "error: ${PATTERNS_FILE} missing. See memory/feedback_identity_leaks.md." >&2
-        exit 2
-    fi
-    # Build a safe grep invocation that doesn't echo the tokens.
-    MATCHES=$(grep -rIf "${PATTERNS_FILE}" "${BUILD_DIR}" 2>/dev/null | wc -l | tr -d ' ')
-    if [[ "${MATCHES}" != "0" ]]; then
-        echo "IDENTITY LEAK DETECTED in build output (${MATCHES} matches). Aborting deploy." >&2
-        echo "Inspect manually with: grep -rIf .claude-identity-scrub build/WebGL" >&2
-        exit 1
-    fi
-    echo "    clean (0 matches)"
+PATTERNS_FILE="${REPO_ROOT}/.claude-identity-scrub"
+if [[ ! -f "${PATTERNS_FILE}" ]]; then
+    echo "error: ${PATTERNS_FILE} missing. See memory/feedback_identity_leaks.md." >&2
+    exit 2
 fi
-popd >/dev/null
+CLEAN_PATTERNS_FILE="$(mktemp -t meteor-idle-scrub.XXXXXX)"
+trap 'rm -f "${CLEAN_PATTERNS_FILE}"' EXIT
+grep -Ev '^[[:space:]]*(#|$)' "${PATTERNS_FILE}" > "${CLEAN_PATTERNS_FILE}" || true
+PATTERN_COUNT=$(wc -l < "${CLEAN_PATTERNS_FILE}" | tr -d ' ')
+if [[ "${PATTERN_COUNT}" -eq 0 ]]; then
+    echo "error: ${PATTERNS_FILE} contains no usable patterns." >&2
+    exit 2
+fi
+# grep returns 1 when it finds nothing — that's our success case, so swallow it.
+set +e
+MATCH_COUNT=$(grep -rIFif "${CLEAN_PATTERNS_FILE}" "${BUILD_DIR}" 2>/dev/null | wc -l | tr -d ' ')
+set -e
+if [[ "${MATCH_COUNT}" -ne 0 ]]; then
+    echo "IDENTITY LEAK DETECTED in build output (${MATCH_COUNT} matches). Aborting deploy." >&2
+    echo "Inspect manually (patterns stripped for comments/blanks):" >&2
+    echo "  grep -rIFif <(grep -Ev '^[[:space:]]*(#|\$)' ${PATTERNS_FILE}) build/WebGL" >&2
+    exit 1
+fi
+echo "    clean (0 matches across ${PATTERN_COUNT} pattern(s))"
 
 # Ensure gh-pages branch exists locally or on the remote.
 git fetch "${REMOTE}" "${BRANCH}" 2>/dev/null || true
