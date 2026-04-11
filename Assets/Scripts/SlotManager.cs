@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.Serialization;
 
 public class SlotManager : MonoBehaviour
 {
@@ -11,7 +12,9 @@ public class SlotManager : MonoBehaviour
     [SerializeField] private WeaponType prebuiltWeapon = WeaponType.Missile;
     [SerializeField] private int[] buildCosts = { 100, 300 };
 
-    [SerializeField] private CanvasGroup upgradePanel;
+    [FormerlySerializedAs("upgradePanel")]
+    [SerializeField] private CanvasGroup upgradePanelMissile;
+    [SerializeField] private CanvasGroup upgradePanelRailgun;
     [SerializeField] private BuildSlotPanel buildSlotPanel;
     [SerializeField] private MeteorSpawner meteorSpawner;
 
@@ -28,9 +31,15 @@ public class SlotManager : MonoBehaviour
             var pos = new Vector3(startX + i * slotSpacing, slotY, 0f);
             var slot = Instantiate(slotPrefab, pos, Quaternion.identity, transform);
 
-            var t = slot.GetComponent<TurretBase>();
-            if (t != null) t.SetRuntimeRefs(meteorSpawner);
-            slot.SetUpgradePanel(upgradePanel);
+            // Both weapon children (MissileWeapon, RailgunWeapon) live as
+            // inactive children of the slot. GetComponentsInChildren with
+            // includeInactive=true picks both turrets so we can wire the
+            // spawner ref into both regardless of which one ends up active.
+            var turrets = slot.GetComponentsInChildren<TurretBase>(true);
+            foreach (var t in turrets) t.SetRuntimeRefs(meteorSpawner);
+
+            slot.SetMissileUpgradePanel(upgradePanelMissile);
+            slot.SetRailgunUpgradePanel(upgradePanelRailgun);
             slot.EmptyClicked += OpenBuildPanel;
 
             if (i == prebuiltIndex) slot.Build(prebuiltWeapon);
