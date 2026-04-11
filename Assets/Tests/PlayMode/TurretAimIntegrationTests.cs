@@ -185,6 +185,113 @@ namespace MeteorIdle.Tests.PlayMode
         [UnityTest] public IEnumerator Hit_Missile_OffAxis() =>
             RunHitTest(WeaponType.Missile, new Vector3(0f, -5f, 0f), new Vector3(5f, 8f, 0f), new Vector2(0.3f, -0.5f), speedLevel: 0, homingLevel: 0);
 
+        // User-reported scenario 2026-04-11: FireRate level 34 + Speed level 43
+        // observed in-WebGL. User hypothesis: "the round is travelling so fast
+        // that it goes past the intended target". FireRate 34 -> fires per sec =
+        // 0.2 + 0.05*34 = 1.9 Hz. Speed 43 -> world/sec = 6 + 3*43 = 135. At that
+        // speed a 10-unit shot takes 0.074s (~4.4 frames at 60 fps). The meteor
+        // drifts ~0.02 world units during that time, so the lead is essentially
+        // zero. This test confirms whether the miss is reproducible in isolation
+        // or is WebGL-runtime specific.
+        [UnityTest] public IEnumerator Hit_Railgun_UserReported_FireRate34_Speed43() =>
+            RunHitTestWithFireRate(
+                WeaponType.Railgun,
+                new Vector3(0f, -5f, 0f),
+                new Vector3(0f, 5f, 0f),
+                new Vector2(0.3f, -0.5f),
+                speedLevel: 43,
+                fireRateLevel: 34,
+                homingLevel: 0);
+
+        // Same user scenario but with no drift — isolates whether the drift
+        // direction matters at this speed.
+        [UnityTest] public IEnumerator Hit_Railgun_UserReported_FireRate34_Speed43_NoDrift() =>
+            RunHitTestWithFireRate(
+                WeaponType.Railgun,
+                new Vector3(0f, -5f, 0f),
+                new Vector3(0f, 5f, 0f),
+                new Vector2(0f, -0.5f),
+                speedLevel: 43,
+                fireRateLevel: 34,
+                homingLevel: 0);
+
+        // Same scenario off-axis — the meteor is neither directly above nor
+        // perfectly aligned. Exercises the angled flight path where raycast
+        // aliasing would be most visible at high stepDistance.
+        [UnityTest] public IEnumerator Hit_Railgun_UserReported_FireRate34_Speed43_OffAxis() =>
+            RunHitTestWithFireRate(
+                WeaponType.Railgun,
+                new Vector3(0f, -5f, 0f),
+                new Vector3(4f, 6f, 0f),
+                new Vector2(0.3f, -0.5f),
+                speedLevel: 43,
+                fireRateLevel: 34,
+                homingLevel: 0);
+
+        // Overload that also sets FireRate (or equivalent) for tests that
+        // want to match a specific user-session upgrade state. FireRate only
+        // affects the single-shot scenario indirectly (via charge duration),
+        // so setting it exercises the code path even though we still force
+        // chargeTimer to ready before the first Update.
+        private IEnumerator RunHitTestWithFireRate(
+            WeaponType weapon,
+            Vector3 slotPos,
+            Vector3 meteorPos,
+            Vector2 meteorVel,
+            int speedLevel,
+            int fireRateLevel,
+            int homingLevel)
+        {
+            yield return SetupScene();
+
+            var slot = SpawnTestSlot(slotPos, weapon);
+            var turret = slot.ActiveTurret;
+            Assert.IsNotNull(turret, $"{weapon} slot must expose an ActiveTurret");
+
+            var spawner = SpawnTestSpawner();
+            turret.SetRuntimeRefs(spawner);
+
+            if (weapon == WeaponType.Railgun)
+            {
+                var railgun = (RailgunTurret)turret;
+                railgun.Stats.speed.level = speedLevel;
+                railgun.Stats.fireRate.level = fireRateLevel;
+            }
+            else
+            {
+                var missile = (MissileTurret)turret;
+                missile.Stats.missileSpeed.level = speedLevel;
+                missile.Stats.fireRate.level = fireRateLevel;
+                missile.Stats.homing.level = homingLevel;
+            }
+
+            var meteor = SpawnTestMeteor(meteorPos);
+            SetMeteorVelocity(meteor, meteorVel);
+            int initialVoxels = meteor.AliveVoxelCount;
+            Assert.Greater(initialVoxels, 0, "meteor must have live voxels at spawn");
+            GetSpawnerActiveList(spawner).Add(meteor);
+
+            if (weapon == WeaponType.Railgun)
+                ForceRailgunReady((RailgunTurret)turret);
+
+            float projectileSpeed = weapon == WeaponType.Railgun
+                ? 6f + 3f * speedLevel
+                : 4f + 0.6f * speedLevel;
+            float distance = Vector3.Distance(slotPos, meteorPos);
+            float flight = distance / projectileSpeed;
+            float budget = flight + 2.5f;
+            yield return new WaitForSeconds(budget);
+
+            Assert.Less(
+                meteor.AliveVoxelCount, initialVoxels,
+                $"{weapon} at speedLvl={speedLevel} fireRateLvl={fireRateLevel} " +
+                $"homingLvl={homingLevel} should have hit meteor (pos={meteorPos}, " +
+                $"vel={meteorVel}) within {budget:F2}s " +
+                $"(initial={initialVoxels}, now={meteor.AliveVoxelCount})");
+
+            TeardownScene();
+        }
+
         // Shared helper — executes one hit test with the given parameters.
         private IEnumerator RunHitTest(
             WeaponType weapon,
