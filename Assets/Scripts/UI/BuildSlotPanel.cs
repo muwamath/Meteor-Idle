@@ -10,11 +10,11 @@ public class BuildSlotPanel : MonoBehaviour
     [SerializeField] private TMP_Text titleLabel;
     [SerializeField] private BuildWeaponButton buttonPrefab;
     [SerializeField] private Transform buttonParent;
-    [SerializeField] private WeaponType[] weapons = { WeaponType.Missile };
+    [SerializeField] private WeaponType[] weapons = { WeaponType.Missile, WeaponType.Railgun };
 
     private readonly List<BuildWeaponButton> buttons = new List<BuildWeaponButton>();
     private BaseSlot targetSlot;
-    private int currentCost;
+    private Func<WeaponType, int> costLookup;
     private Action<BaseSlot, WeaponType> onConfirm;
     private Action<int> moneyListener;
 
@@ -46,13 +46,20 @@ public class BuildSlotPanel : MonoBehaviour
             GameManager.Instance.OnMoneyChanged -= moneyListener;
     }
 
-    public void Open(BaseSlot slot, int cost, Action<BaseSlot, WeaponType> onConfirm)
+    // costLookup returns the per-weapon build cost. The panel binds each
+    // button with its own weapon-specific cost so missile and railgun
+    // can show different prices simultaneously.
+    public void Open(BaseSlot slot, Func<WeaponType, int> costLookup, Action<BaseSlot, WeaponType> onConfirm)
     {
         targetSlot = slot;
-        currentCost = cost;
+        this.costLookup = costLookup;
         this.onConfirm = onConfirm;
-        if (titleLabel != null) titleLabel.text = $"BUILD BASE — ${cost}";
-        for (int i = 0; i < buttons.Count; i++) buttons[i].Bind(weapons[i], cost, OnWeaponClicked);
+        if (titleLabel != null) titleLabel.text = "BUILD BASE";
+        for (int i = 0; i < buttons.Count; i++)
+        {
+            int cost = costLookup != null ? costLookup(weapons[i]) : 0;
+            buttons[i].Bind(weapons[i], cost, OnWeaponClicked);
+        }
         SetVisible(true);
         RefreshAll();
     }
@@ -60,6 +67,7 @@ public class BuildSlotPanel : MonoBehaviour
     public void Close()
     {
         targetSlot = null;
+        costLookup = null;
         onConfirm = null;
         SetVisible(false);
     }

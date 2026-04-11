@@ -3017,7 +3017,8 @@ MonoBehaviour:
   slotSpacing: 8
   prebuiltIndex: 1
   prebuiltWeapon: 0
-  buildCosts: 0100000001000000
+  missileBuildCosts: 0100000001000000
+  railgunBuildCosts: 0100000001000000
   upgradePanelMissile: {fileID: 532953551}
   upgradePanelRailgun: {fileID: 1651240670}
   buildSlotPanel: {fileID: 1519328962}
@@ -3073,7 +3074,7 @@ MonoBehaviour:
   titleLabel: {fileID: 715078737}
   buttonPrefab: {fileID: 435055537782851285, guid: cd4bb1375eb064becb2d5dd71d54d5e5, type: 3}
   buttonParent: {fileID: 1058547653}
-  weapons: 00000000
+  weapons: 0000000001000000
 --- !u!224 &1519328963
 RectTransform:
   m_ObjectHideFlags: 0

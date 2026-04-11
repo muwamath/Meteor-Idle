@@ -10,7 +10,9 @@ public class SlotManager : MonoBehaviour
     [SerializeField] private float slotSpacing = 8f;
     [SerializeField] private int prebuiltIndex = 1;
     [SerializeField] private WeaponType prebuiltWeapon = WeaponType.Missile;
-    [SerializeField] private int[] buildCosts = { 100, 300 };
+    [FormerlySerializedAs("buildCosts")]
+    [SerializeField] private int[] missileBuildCosts = { 100, 300 };
+    [SerializeField] private int[] railgunBuildCosts = { 200, 600 };
 
     [FormerlySerializedAs("upgradePanel")]
     [SerializeField] private CanvasGroup upgradePanelMissile;
@@ -52,25 +54,28 @@ public class SlotManager : MonoBehaviour
     private void OpenBuildPanel(BaseSlot slot)
     {
         if (buildSlotPanel == null) return;
-        int cost = NextBuildCost();
-        buildSlotPanel.Open(slot, cost, OnConfirmBuild);
+        buildSlotPanel.Open(slot, NextBuildCost, OnConfirmBuild);
     }
 
     private void OnConfirmBuild(BaseSlot slot, WeaponType weapon)
     {
-        int cost = NextBuildCost();
+        int cost = NextBuildCost(weapon);
         if (GameManager.Instance == null || !GameManager.Instance.TrySpend(cost)) return;
         slot.Build(weapon);
         builtPurchasedCount++;
         if (buildSlotPanel != null) buildSlotPanel.Close();
     }
 
-    public int NextBuildCost()
+    // Per-weapon cost lookup. The slot tier (builtPurchasedCount) is shared
+    // across weapons — whichever weapon you buy for your Nth slot, it counts
+    // as your Nth purchase for the escalation table.
+    public int NextBuildCost(WeaponType weapon)
     {
-        if (buildCosts == null || buildCosts.Length == 0) return 0;
-        if (builtPurchasedCount < buildCosts.Length) return buildCosts[builtPurchasedCount];
+        int[] costs = weapon == WeaponType.Railgun ? railgunBuildCosts : missileBuildCosts;
+        if (costs == null || costs.Length == 0) return 0;
+        if (builtPurchasedCount < costs.Length) return costs[builtPurchasedCount];
         // After the table runs out, keep scaling off the last entry.
-        int overflow = builtPurchasedCount - buildCosts.Length + 2;
-        return buildCosts[buildCosts.Length - 1] * overflow;
+        int overflow = builtPurchasedCount - costs.Length + 2;
+        return costs[costs.Length - 1] * overflow;
     }
 }
