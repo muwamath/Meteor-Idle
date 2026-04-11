@@ -49,11 +49,9 @@ if [[ ! -f "${BUILD_DIR}/index.html" ]]; then
     exit 1
 fi
 
-# Symmetric cleanup: if a previous run dropped a dev-build sentinel into
-# build/WebGL/ (shouldn't happen — dev builds live in build/WebGL-dev/ — but
-# belt and suspenders) make sure a fresh prod build never leaves one behind.
-# tools/deploy-webgl.sh aborts when it sees this file.
-rm -f "${BUILD_DIR}/.dev-build-marker"
+# Note: BuildScripts.BuildWebGL handles the .dev-build-marker cleanup inside
+# the C# build method (single source of truth across all invocation routes:
+# CLI, execute_code, menu item). This shell wrapper stays thin.
 
 SIZE=$(du -sh "${BUILD_DIR}" | awk '{print $1}')
 echo "==> WebGL build OK: ${BUILD_DIR} (${SIZE})"

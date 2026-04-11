@@ -25,14 +25,23 @@ Early in development. **3 base slots, 2 weapons (Missile and Railgun)**, no pers
 
 ### Building and deploying the WebGL player
 
-The live build at <https://muwamath.github.io/Meteor-Idle/> is produced locally — no CI. Four scripts drive the pipeline, all in `tools/`:
+The live build at <https://muwamath.github.io/Meteor-Idle/> is produced locally — no CI. Builds run **inside the running Unity Editor** (the editor is always open during development), and ship out to GitHub Pages via a thin shell pipeline.
 
-- **`tools/build-webgl.sh`** — headless Unity prod build via `Unity -batchmode -executeMethod BuildScripts.BuildWebGL`. Writes to `build/WebGL/` (gitignored). Close the Unity Editor before running; the script refuses to start while the editor holds the project lock. On success, deletes any stale `.dev-build-marker` sentinel so the output is unambiguously deployable.
-- **`tools/build-webgl-dev.sh`** — same pipeline, but invokes `BuildScripts.BuildWebGLDev` which sets `BuildOptions.Development`. Unity auto-defines `DEVELOPMENT_BUILD`, which unlocks the debug overlay and any other `#if UNITY_EDITOR || DEVELOPMENT_BUILD`-gated surfaces. Writes to `build/WebGL-dev/`. On success, touches a `.dev-build-marker` sentinel inside the output directory — this is the deploy pipeline's "is this a dev build?" signal.
+**Two build flavors, both invoked from inside the editor:**
+
+- **`Meteor Idle → Build → WebGL (Prod)`** (menu item) — the production build. Writes to `build/WebGL/`. No `DEVELOPMENT_BUILD` define; the debug overlay is stubbed out. Deletes any stale `.dev-build-marker` sentinel on success so the output is unambiguously deployable.
+- **`Meteor Idle → Build → WebGL (Dev)`** (menu item) — the development build with `BuildOptions.Development`. Unity auto-defines `DEVELOPMENT_BUILD`, unlocking the debug overlay and any other `#if UNITY_EDITOR || DEVELOPMENT_BUILD`-gated surfaces. Writes to `build/WebGL-dev/` and touches a `.dev-build-marker` sentinel inside the output directory.
+
+Both menu items are thin wrappers over static methods in `Assets/Editor/BuildScripts.cs` (`BuildWebGL` and `BuildWebGLDev`), and both are also callable from MCP (`mcp__UnityMCP__execute_code`) — useful for scripted verify loops.
+
+**Serve and deploy, both in `tools/`:**
+
 - **`tools/serve-webgl-dev.sh`** — `python3 -m http.server 8000 --directory build/WebGL-dev/` with a port-availability precheck. Used during manual verification. Override the port with `PORT=<n>`.
 - **`tools/deploy-webgl.sh`** — runs the identity scrub on the build output, `rsync`s it into a `gh-pages` linked worktree at `../Meteor-Idle-gh-pages`, writes `.nojekyll`, and makes a commit. The script does **not** push — it prints the exact `git push` command for manual review. **Refuses to deploy if it finds a `.dev-build-marker` sentinel**, making it impossible to accidentally ship a development build to GitHub Pages.
 
-All scripts must be run from the repo root. The deploy fires after a branch has been fast-forwarded to `main` and verified end-to-end via a local WebGL dev build (not editor play mode — editor play mode doesn't run the same code path real players see, so it's only used for fast iterative debugging during development).
+**Legacy shell wrappers:** `tools/build-webgl.sh` and `tools/build-webgl-dev.sh` still exist as headless CLI invocations of the same C# methods. They are only useful when Unity is *not* running (e.g. hypothetical CI), since the editor's project lock prevents a second Unity instance from opening the same project. In normal development the menu items (or MCP) are the path.
+
+The deploy fires after a branch has been fast-forwarded to `main` and verified end-to-end via the local WebGL dev build (not editor play mode — editor play mode doesn't run the same code path real players see, so it's only used for fast iterative debugging during development).
 
 ## How to play
 

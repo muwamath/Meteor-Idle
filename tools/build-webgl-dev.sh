@@ -55,10 +55,9 @@ if [[ ! -f "${BUILD_DIR}/index.html" ]]; then
     exit 1
 fi
 
-# Sentinel file — tools/deploy-webgl.sh checks for this inside build/WebGL/
-# and refuses to deploy if present. Living in build/WebGL-dev/ it also tags
-# this directory for any human reader wondering whether it's a dev or prod build.
-touch "${BUILD_DIR}/.dev-build-marker"
+# Note: BuildScripts.BuildWebGLDev writes the .dev-build-marker sentinel
+# inside the C# build method (single source of truth across all invocation
+# routes: CLI, execute_code, menu item). This shell wrapper stays thin.
 
 SIZE=$(du -sh "${BUILD_DIR}" | awk '{print $1}')
 echo "==> WebGL DEV build OK: ${BUILD_DIR} (${SIZE})"
