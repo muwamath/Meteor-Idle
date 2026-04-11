@@ -1,0 +1,20 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: df0ccf7c56e7b4b3889db7cf070919e8, type: 3}
+  m_Name: MaterialRegistry
+  m_EditorClassIdentifier: MeteorIdle::MaterialRegistry
+  materials:
+  - {fileID: 11400000, guid: 8871f6bbcaff94b238f88c1f2930f58b, type: 2}
+  - {fileID: 11400000, guid: 3d00ed7f7353a4df8a84aa870b316e3d, type: 2}
+  - {fileID: 11400000, guid: 8702d75aa5ae3424f994ce83b3390f6b, type: 2}
+  - {fileID: 11400000, guid: d96965c2dccf04347a92bf7f884f70e8, type: 2}
+  - {fileID: 11400000, guid: 897621055a9b74f548e91f5ebd79f88f, type: 2}
