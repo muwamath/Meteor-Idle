@@ -4,7 +4,7 @@ using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
 
-public class UpgradePanel : MonoBehaviour
+public class MissileUpgradePanel : MonoBehaviour
 {
     [SerializeField] private TurretStats stats;
     [SerializeField] private UpgradeButton buttonPrefab;
@@ -16,10 +16,10 @@ public class UpgradePanel : MonoBehaviour
 
     private void Start()
     {
-        if (stats == null)              { Debug.LogError("[UpgradePanel] stats is not assigned", this); return; }
-        if (buttonPrefab == null)       { Debug.LogError("[UpgradePanel] buttonPrefab is not assigned", this); return; }
-        if (launcherColumnParent == null) { Debug.LogError("[UpgradePanel] launcherColumnParent is not assigned", this); return; }
-        if (missileColumnParent == null)  { Debug.LogError("[UpgradePanel] missileColumnParent is not assigned", this); return; }
+        if (stats == null)              { Debug.LogError("[MissileUpgradePanel] stats is not assigned", this); return; }
+        if (buttonPrefab == null)       { Debug.LogError("[MissileUpgradePanel] buttonPrefab is not assigned", this); return; }
+        if (launcherColumnParent == null) { Debug.LogError("[MissileUpgradePanel] launcherColumnParent is not assigned", this); return; }
+        if (missileColumnParent == null)  { Debug.LogError("[MissileUpgradePanel] missileColumnParent is not assigned", this); return; }
 
         foreach (var stat in stats.All())
         {
