@@ -10,9 +10,7 @@ public class Turret : MonoBehaviour
     [SerializeField] private MeteorSpawner meteorSpawner;
     [SerializeField] private ParticleSystem muzzleFlash;
     [SerializeField] private float range = 14f;
-    [SerializeField] private float rotationSpeedDegPerSec = 45f;
     [SerializeField] private float aimAlignmentDeg = 10f;
-    [SerializeField] private float maxWobbleDeg = 30f;
 
     private SimplePool<Missile> missilePool;
     private float reloadTimer;
@@ -34,13 +32,14 @@ public class Turret : MonoBehaviour
         Vector2 toTarget = (Vector2)(target.transform.position - barrel.position);
         float desiredAngle = Mathf.Atan2(toTarget.y, toTarget.x) * Mathf.Rad2Deg - 90f;
         float currentAngle = barrel.eulerAngles.z;
-        float newAngle = Mathf.MoveTowardsAngle(currentAngle, desiredAngle, rotationSpeedDegPerSec * Time.deltaTime);
+        float rotSpeed = stats.rotationSpeed.CurrentValue;
+        float newAngle = Mathf.MoveTowardsAngle(currentAngle, desiredAngle, rotSpeed * Time.deltaTime);
         barrel.rotation = Quaternion.Euler(0, 0, newAngle);
 
         float alignmentErr = Mathf.Abs(Mathf.DeltaAngle(newAngle, desiredAngle));
         if (reloadTimer <= 0f && alignmentErr <= aimAlignmentDeg)
         {
-            Fire();
+            Fire(target);
             reloadTimer = 1f / Mathf.Max(0.05f, stats.fireRate.CurrentValue);
         }
     }
@@ -63,20 +62,38 @@ public class Turret : MonoBehaviour
         return closest;
     }
 
-    private void Fire()
+    private void Fire(Meteor target)
     {
         var missile = missilePool.Get();
+        Vector3 spawnPos = muzzle != null ? muzzle.position : barrel.position;
 
-        // Barrel "up" is local +Y; world direction comes from barrel.up
-        Vector2 dir = barrel.up;
-        float accuracy = Mathf.Clamp01(stats.accuracy.CurrentValue);
-        float wobble = (1f - accuracy) * maxWobbleDeg;
-        float offset = Random.Range(-wobble, wobble);
-        dir = (Vector2)(Quaternion.Euler(0, 0, offset) * dir);
+        // Pick a specific voxel on the target meteor to aim at.
+        int gx = 0, gy = 0;
+        bool hasVoxel = target.PickRandomPresentVoxel(out gx, out gy);
+
+        Vector2 dir;
+        if (hasVoxel)
+        {
+            Vector3 voxelWorld = target.GetVoxelWorldPosition(gx, gy);
+            dir = ((Vector2)(voxelWorld - spawnPos)).normalized;
+            if (dir.sqrMagnitude < 0.0001f) dir = barrel.up;
+        }
+        else
+        {
+            dir = barrel.up;
+        }
 
         float speed = stats.missileSpeed.CurrentValue;
-        Vector3 spawnPos = muzzle != null ? muzzle.position : barrel.position;
-        missile.Launch(this, spawnPos, dir * speed, stats.damage.CurrentValue, stats.blastRadius.CurrentValue);
+        missile.Launch(
+            this,
+            spawnPos,
+            dir * speed,
+            stats.damage.CurrentValue,
+            stats.blastRadius.CurrentValue,
+            target,
+            gx,
+            gy,
+            stats.homing.CurrentValue);
 
         if (muzzleFlash != null) muzzleFlash.Play();
     }

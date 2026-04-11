@@ -14,6 +14,12 @@ public class Missile : MonoBehaviour
     private float despawnAt;
     private Turret owner;
 
+    // Homing state
+    private Meteor homingTarget;
+    private int targetGx;
+    private int targetGy;
+    private float homingDegPerSec;
+
     private void Awake()
     {
         rb = GetComponent<Rigidbody2D>();
@@ -23,23 +29,62 @@ public class Missile : MonoBehaviour
         col.isTrigger = true;
     }
 
-    public void Launch(Turret turret, Vector3 position, Vector2 velocity, float damageStat, float blastStat)
+    public void Launch(
+        Turret turret,
+        Vector3 position,
+        Vector2 velocity,
+        float damageStat,
+        float blastStat,
+        Meteor target,
+        int targetGridX,
+        int targetGridY,
+        float homingDegPerSec)
     {
         owner = turret;
-        // Starting 0.18 guarantees ≥ sqrt(2)/2 grid units at every sprite scale (0.7–1.6),
-        // so the strict radius check always catches at least one voxel on a solid hit.
         impactRadius = 0.14f + 0.04f * Mathf.Max(0f, damageStat);
         blastRadius = Mathf.Max(0f, blastStat);
+
+        homingTarget = target;
+        targetGx = targetGridX;
+        targetGy = targetGridY;
+        this.homingDegPerSec = Mathf.Max(0f, homingDegPerSec);
+
         transform.position = position;
-        float angle = Mathf.Atan2(velocity.y, velocity.x) * Mathf.Rad2Deg;
-        transform.rotation = Quaternion.Euler(0, 0, angle - 90f);
+        ApplyVelocityRotation(velocity);
         rb.linearVelocity = velocity;
         despawnAt = Time.time + lifetime;
     }
 
     private void Update()
     {
-        if (Time.time >= despawnAt) Despawn();
+        if (Time.time >= despawnAt) { Despawn(); return; }
+
+        if (homingDegPerSec > 0.01f && homingTarget != null && homingTarget.IsAlive && homingTarget.IsVoxelPresent(targetGx, targetGy))
+        {
+            Vector3 voxelWorld = homingTarget.GetVoxelWorldPosition(targetGx, targetGy);
+            Vector2 desired = ((Vector2)(voxelWorld - transform.position)).normalized;
+            if (desired.sqrMagnitude > 0.0001f)
+            {
+                Vector2 current = rb.linearVelocity;
+                float speed = current.magnitude;
+                if (speed > 0.0001f)
+                {
+                    Vector2 currentDir = current / speed;
+                    float maxStep = homingDegPerSec * Time.deltaTime;
+                    Vector2 newDir = Vector3.RotateTowards(currentDir, desired, maxStep * Mathf.Deg2Rad, 0f);
+                    Vector2 newVel = newDir * speed;
+                    rb.linearVelocity = newVel;
+                    ApplyVelocityRotation(newVel);
+                }
+            }
+        }
+    }
+
+    private void ApplyVelocityRotation(Vector2 velocity)
+    {
+        if (velocity.sqrMagnitude < 0.0001f) return;
+        float angle = Mathf.Atan2(velocity.y, velocity.x) * Mathf.Rad2Deg;
+        transform.rotation = Quaternion.Euler(0, 0, angle - 90f);
     }
 
     private void OnTriggerEnter2D(Collider2D other)
@@ -75,6 +120,7 @@ public class Missile : MonoBehaviour
     private void Despawn()
     {
         rb.linearVelocity = Vector2.zero;
+        homingTarget = null;
         owner?.ReleaseMissile(this);
     }
 }

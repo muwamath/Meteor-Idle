@@ -19,26 +19,26 @@ MonoBehaviour:
     perLevelAdd: 0.15
     baseCost: 10
     costGrowth: 1.6
-  missileSpeed:
+  rotationSpeed:
     id: 1
+    displayName: Rotation Speed
+    baseValue: 30
+    perLevelAdd: 15
+    baseCost: 12
+    costGrowth: 1.6
+  missileSpeed:
+    id: 2
     displayName: Missile Speed
     baseValue: 4
     perLevelAdd: 0.6
     baseCost: 15
     costGrowth: 1.6
   damage:
-    id: 2
+    id: 3
     displayName: Damage
     baseValue: 1
     perLevelAdd: 1
     baseCost: 20
-    costGrowth: 1.6
-  accuracy:
-    id: 3
-    displayName: Accuracy
-    baseValue: 0.5
-    perLevelAdd: 0.04
-    baseCost: 25
     costGrowth: 1.6
   blastRadius:
     id: 4
@@ -46,4 +46,11 @@ MonoBehaviour:
     baseValue: 0.1
     perLevelAdd: 0.25
     baseCost: 40
+    costGrowth: 1.6
+  homing:
+    id: 5
+    displayName: Homing
+    baseValue: 0
+    perLevelAdd: 30
+    baseCost: 35
     costGrowth: 1.6
