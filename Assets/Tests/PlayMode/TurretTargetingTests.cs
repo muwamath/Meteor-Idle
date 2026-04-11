@@ -26,6 +26,7 @@ namespace MeteorIdle.Tests.PlayMode
 
             protected override float FireRate => 1f;
             protected override float RotationSpeed => 360f;
+            protected override float ProjectileSpeed => 10f;
 
             protected override void Fire(Meteor target)
             {

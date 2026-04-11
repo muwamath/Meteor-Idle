@@ -34,6 +34,7 @@ public class RailgunTurret : TurretBase
 
     protected override float FireRate => statsInstance != null ? statsInstance.fireRate.CurrentValue : 0.2f;
     protected override float RotationSpeed => statsInstance != null ? statsInstance.rotationSpeed.CurrentValue : 20f;
+    protected override float ProjectileSpeed => statsInstance != null ? statsInstance.speed.CurrentValue : 6f;
 
     protected override void Awake()
     {
@@ -68,7 +69,8 @@ public class RailgunTurret : TurretBase
         var target = FindTarget();
         if (target == null) return;
 
-        Vector2 toTarget = (Vector2)(target.transform.position - barrel.position);
+        Vector2 aimPoint = ComputeAimPoint(target);
+        Vector2 toTarget = aimPoint - (Vector2)barrel.position;
         float desiredAngle = Mathf.Atan2(toTarget.y, toTarget.x) * Mathf.Rad2Deg - 90f;
         float currentAngle = barrel.eulerAngles.z;
         float newAngle = Mathf.MoveTowardsAngle(currentAngle, desiredAngle, RotationSpeed * Time.deltaTime);
@@ -97,7 +99,19 @@ public class RailgunTurret : TurretBase
         }
 
         Vector3 spawnPos = muzzle != null ? muzzle.position : barrel.position;
-        Vector3 dir = barrel.up;
+
+        // Recompute the lead point at fire time — the barrel may have just
+        // finished rotating this frame, and the target may have moved since
+        // the Update-step aim. Using the fresh value keeps fire direction and
+        // final aim in sync.
+        Vector2 leadPoint = AimSolver.PredictInterceptPoint(
+            (Vector2)spawnPos,
+            (Vector2)target.transform.position,
+            target.Velocity,
+            statsInstance.speed.CurrentValue);
+        Vector2 dir2 = (leadPoint - (Vector2)spawnPos).normalized;
+        if (dir2.sqrMagnitude < 0.0001f) dir2 = (Vector2)barrel.up;
+        Vector3 dir = new Vector3(dir2.x, dir2.y, 0f);
 
         var round = Instantiate(roundPrefab);
         round.Configure(

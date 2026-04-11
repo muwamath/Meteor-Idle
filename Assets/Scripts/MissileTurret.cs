@@ -15,6 +15,7 @@ public class MissileTurret : TurretBase
 
     protected override float FireRate => statsInstance != null ? statsInstance.fireRate.CurrentValue : 0.5f;
     protected override float RotationSpeed => statsInstance != null ? statsInstance.rotationSpeed.CurrentValue : 30f;
+    protected override float ProjectileSpeed => statsInstance != null ? statsInstance.missileSpeed.CurrentValue : 4f;
 
     protected override void Awake()
     {
@@ -47,11 +48,21 @@ public class MissileTurret : TurretBase
         int gx = 0, gy = 0;
         bool hasVoxel = target.PickRandomPresentVoxel(out gx, out gy);
 
+        float speed = statsInstance.missileSpeed.CurrentValue;
         Vector2 dir;
         if (hasVoxel)
         {
+            // Lead-aim at the specific voxel the missile will home to. Using
+            // the meteor's velocity as the target velocity — voxels move with
+            // the meteor rigidly, so the voxel's future position is the voxel's
+            // current world position plus meteor velocity * intercept time.
             Vector3 voxelWorld = target.GetVoxelWorldPosition(gx, gy);
-            dir = ((Vector2)(voxelWorld - spawnPos)).normalized;
+            Vector2 leadPoint = AimSolver.PredictInterceptPoint(
+                (Vector2)spawnPos,
+                (Vector2)voxelWorld,
+                target.Velocity,
+                speed);
+            dir = (leadPoint - (Vector2)spawnPos).normalized;
             if (dir.sqrMagnitude < 0.0001f) dir = barrel.up;
         }
         else
@@ -59,7 +70,6 @@ public class MissileTurret : TurretBase
             dir = barrel.up;
         }
 
-        float speed = statsInstance.missileSpeed.CurrentValue;
         Meteor homingTarget = hasVoxel ? target : null;
         missile.Launch(
             this,

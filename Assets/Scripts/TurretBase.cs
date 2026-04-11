@@ -32,6 +32,7 @@ public abstract class TurretBase : MonoBehaviour
     // Subclass contracts — per-weapon stats come through here.
     protected abstract float FireRate { get; }
     protected abstract float RotationSpeed { get; }
+    protected abstract float ProjectileSpeed { get; }
     protected abstract void Fire(Meteor target);
 
     protected virtual void Update()
@@ -41,7 +42,8 @@ public abstract class TurretBase : MonoBehaviour
         var target = FindTarget();
         if (target == null) return;
 
-        Vector2 toTarget = (Vector2)(target.transform.position - barrel.position);
+        Vector2 aimPoint = ComputeAimPoint(target);
+        Vector2 toTarget = aimPoint - (Vector2)barrel.position;
         float desiredAngle = Mathf.Atan2(toTarget.y, toTarget.x) * Mathf.Rad2Deg - 90f;
         float currentAngle = barrel.eulerAngles.z;
         float rotSpeed = RotationSpeed;
@@ -72,5 +74,18 @@ public abstract class TurretBase : MonoBehaviour
             }
         }
         return closest;
+    }
+
+    // Lead-aim helper: returns the world-space point the barrel should
+    // rotate toward, given a target meteor. Plugs the meteor's current
+    // position and velocity into AimSolver for a constant-velocity
+    // intercept prediction using the subclass's ProjectileSpeed.
+    protected Vector2 ComputeAimPoint(Meteor target)
+    {
+        return AimSolver.PredictInterceptPoint(
+            (Vector2)barrel.position,
+            (Vector2)target.transform.position,
+            target.Velocity,
+            ProjectileSpeed);
     }
 }
