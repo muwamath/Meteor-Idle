@@ -96,21 +96,6 @@ namespace MeteorIdle.Tests.PlayMode
         }
 
         [UnityTest]
-        public IEnumerator FindTarget_IgnoresMeteorsBeyondRange()
-        {
-            yield return SetupTurretScene();
-
-            // Default TurretBase.range = 30. Place a single meteor at distance
-            // 40 — it must be ignored entirely (FindTarget returns null).
-            var farAway = SpawnTestMeteor(new Vector3(0f, 40f, 0f), seed: 44);
-            _injectedActive.Add(farAway);
-
-            Assert.IsNull(_turret.FindTargetForTest());
-
-            TeardownScene();
-        }
-
-        [UnityTest]
         public IEnumerator FindTarget_IgnoresDeadMeteors()
         {
             yield return SetupTurretScene();

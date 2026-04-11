@@ -10,10 +10,6 @@ public abstract class TurretBase : MonoBehaviour
     [SerializeField] protected ParticleSystem muzzleFlash;
     [SerializeField] protected MeteorSpawner meteorSpawner;
 
-    // Large enough to cover the full playfield from any slot position. Camera
-    // ortho size 9 → view roughly ±16 × ±9 world. Worst-case distance from a
-    // side slot to the opposite corner is ~26; 30 gives comfortable headroom.
-    [SerializeField] protected float range = 30f;
     [SerializeField] protected float aimAlignmentDeg = 10f;
 
     protected float reloadTimer;
@@ -64,7 +60,7 @@ public abstract class TurretBase : MonoBehaviour
     {
         if (meteorSpawner == null) return null;
         Meteor closest = null;
-        float bestSqr = range * range;
+        float bestSqr = float.PositiveInfinity;
         foreach (var m in meteorSpawner.ActiveMeteors)
         {
             if (m == null || !m.IsAlive) continue;

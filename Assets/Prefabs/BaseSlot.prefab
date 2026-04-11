@@ -301,7 +301,6 @@ MonoBehaviour:
   muzzle: {fileID: 4822967625318274876}
   muzzleFlash: {fileID: 0}
   meteorSpawner: {fileID: 0}
-  range: 30
   aimAlignmentDeg: 10
   stats: {fileID: 11400000, guid: ae9ed86f835a64f16b7f227a4de8f9fd, type: 2}
   roundPrefab: {fileID: 7030113235545394260, guid: bfb82201f8a774e82a16d1324b5d1ba7, type: 3}
@@ -509,7 +508,6 @@ MonoBehaviour:
   muzzle: {fileID: 1712515038740916909}
   muzzleFlash: {fileID: 2484964582073554680}
   meteorSpawner: {fileID: 0}
-  range: 14
   aimAlignmentDeg: 10
   stats: {fileID: 11400000, guid: 87efed1585a384875908d618321df9e5, type: 2}
   missilePrefab: {fileID: 1076061432445373507, guid: c6b51926ae94c40178b9c97b65589c58, type: 3}
