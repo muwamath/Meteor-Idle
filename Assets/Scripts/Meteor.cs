@@ -138,6 +138,37 @@ public class Meteor : MonoBehaviour
         return transform.TransformPoint(new Vector3(lx, ly, 0f));
     }
 
+    public Vector3 GetVoxelWorldPosition(int gx, int gy) => VoxelCenterToWorld(gx, gy);
+
+    public bool IsVoxelPresent(int gx, int gy)
+    {
+        if (voxels == null) return false;
+        if (gx < 0 || gy < 0 || gx >= VoxelMeteorGenerator.GridSize || gy >= VoxelMeteorGenerator.GridSize) return false;
+        return voxels[gx, gy];
+    }
+
+    public bool PickRandomPresentVoxel(out int gx, out int gy)
+    {
+        gx = 0; gy = 0;
+        if (voxels == null || aliveCount <= 0) return false;
+        int targetIndex = Random.Range(0, aliveCount);
+        int seen = 0;
+        for (int y = 0; y < VoxelMeteorGenerator.GridSize; y++)
+        {
+            for (int x = 0; x < VoxelMeteorGenerator.GridSize; x++)
+            {
+                if (!voxels[x, y]) continue;
+                if (seen == targetIndex)
+                {
+                    gx = x; gy = y;
+                    return true;
+                }
+                seen++;
+            }
+        }
+        return false;
+    }
+
     private void ReturnSilently()
     {
         dead = true;

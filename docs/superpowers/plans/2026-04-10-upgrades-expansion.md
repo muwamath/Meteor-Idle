@@ -15,19 +15,11 @@
 | **Missile** | Blast Radius | existing | 0.10 | +0.25 |
 | **Missile** | Homing | **NEW** | 0°/sec | +30°/sec |
 
-## Open question: what happens to Accuracy?
+## Accuracy — dropped, replaced by Homing
 
-The current game has an **Accuracy** stat — it controls a one-time launch wobble (random aim error applied at missile fire time). The wobble angle is `(1 - accuracy) * 30°`.
+Accuracy is removed entirely. The launch wobble (`(1 - accuracy) * 30°`) is gone. Every missile launches in a precise direction toward a specific target voxel.
 
-Your new list doesn't mention Accuracy, so I'm reading this as "Accuracy gets dropped" — the launch wobble is removed entirely (missiles always fly straight out of the barrel), and homing replaces it as the "make missiles better at hitting" upgrade axis.
-
-Three ways to interpret your intent, ordered by how I'd recommend them:
-
-- **(A) Drop Accuracy, add Homing.** Missiles launch perfectly straight. Homing controls mid-flight steering. Simpler and cleaner — I think you forgot Accuracy was there and probably didn't intend to keep it. **Recommended.**
-- **(B) Keep Accuracy as a Missile stat (hidden 7th upgrade).** Accuracy stays in code and stats but isn't in the upgrade panel. Feels bad — you can't buy it.
-- **(C) Keep Accuracy and show all 7 upgrades** (Missile column gets 5 buttons instead of 4). Undoes the symmetry of your 2+4 layout.
-
-**If you want anything other than (A), tell me and I'll amend this plan before implementation.**
+Homing picks up where Accuracy left off: instead of making launch *direction* noisy (or not), Homing makes the missile *correct mid-flight* to hit a specific voxel on a specific meteor.
 
 ## Design details
 
@@ -49,7 +41,7 @@ public Stat rotationSpeed = new Stat {
 
 ### New stat: Homing
 
-Missiles can steer toward a target mid-flight at up to `homingDegPerSec` degrees per second of rotation.
+Missiles lock onto a **specific voxel** on a specific meteor and steer toward it mid-flight at up to `homingDegPerSec` degrees per second of velocity rotation.
 
 ```csharp
 public Stat homing = new Stat {
@@ -61,18 +53,29 @@ public Stat homing = new Stat {
 };
 ```
 
-Starting at 0 means no homing at all (missiles fly straight, same as today). Level 1 → 30°/sec, level 5 → 150°/sec, etc.
+Starting at 0 means no mid-flight correction. The missile is still *fired at* the selected voxel's position at launch time — but without homing, the missile flies a dead-straight line and the meteor may drift sideways during the missile's travel time, causing the missile to hit a neighboring voxel or miss entirely. Homing compensates for that drift.
+
+Level 1 → 30°/sec, level 5 → 150°/sec, etc.
 
 **Implementation:**
-- `Missile.Launch(...)` gains a new parameter `Meteor target` (passed from `Turret.Fire`), plus `float homingDegPerSec`.
-- `Missile.Update` — if `target != null && target.IsAlive && homingDegPerSec > 0.01f`:
-  1. Compute desired direction = `(target.transform.position - transform.position).normalized`
-  2. Current direction = `rb.linearVelocity.normalized`
-  3. Use `Vector2.MoveTowards` or manual angle math to rotate current direction toward desired by `homingDegPerSec * Time.deltaTime` degrees
-  4. Reapply as `rb.linearVelocity = newDir * currentSpeed` (preserves magnitude)
-  5. Also rotate the missile's visual transform to match the new velocity.
-- Target reference becomes stale on impact or meteor death — guarded by `target.IsAlive` check. Once invalid, the missile flies straight from that point onward.
-- `Turret.Fire` — passes `target` (the selected Meteor from `FindTarget()`) to `missile.Launch`.
+
+- `Turret.Fire` — after `FindTarget()` returns a meteor, call `target.PickRandomPresentVoxel(out int gx, out int gy)` to pick which square on the meteor the missile aims at. Pass all three (`target`, `gx`, `gy`) plus the homing stat into `Missile.Launch`.
+
+- `Missile.Launch(... Meteor target, int targetGx, int targetGy, float homingDegPerSec)` stores the target reference + voxel coords. Computes the initial velocity as the direction from the muzzle to the voxel's *current world position* (via `target.GetVoxelWorldPosition(gx, gy)`), scaled by missile speed.
+
+- `Missile.Update` each frame (while still alive):
+  1. If `target == null`, fly straight. No homing work.
+  2. If `!target.IsAlive` or `!target.IsVoxelPresent(targetGx, targetGy)`, the lock is stale. Fly straight.
+  3. Otherwise, compute desired direction = `(target.GetVoxelWorldPosition(gx, gy) - transform.position).normalized`.
+  4. Rotate `rb.linearVelocity` toward that direction by up to `homingDegPerSec * Time.deltaTime` degrees (preserving magnitude).
+  5. Update missile's visual rotation to match new velocity.
+
+- Collision behavior **unchanged**. `OnTriggerEnter2D` → `ApplyBlast(transform.position, impactRadius + blastRadius)` fires on *any* meteor the missile touches, not just the target. So if another meteor gets in the missile's way, the missile explodes on that other meteor at the impact point — the homing target is just a steering hint, not a collision filter.
+
+- **Meteor.cs new public API:**
+  - `public bool IsVoxelPresent(int gx, int gy)` — bounds-checked lookup into the grid.
+  - `public Vector3 GetVoxelWorldPosition(int gx, int gy)` — promotes the existing private `VoxelCenterToWorld` to public.
+  - `public bool PickRandomPresentVoxel(out int gx, out int gy)` — iterate the grid, collect present cells, pick a random index. Returns false if no cells remain (meteor is effectively dead, shouldn't happen during Fire since FindTarget filters on `IsAlive`).
 
 ### Drop: Accuracy (assuming (A))
 
@@ -148,14 +151,14 @@ Current `UpgradeButton.prefab` — TMP_Text label at 16pt, button container 260�
 - Label font size: 20pt
 - Label content unchanged: `"{name}\nLvl {lvl} — ${cost}"`
 
-### Missile re-targeting behavior (edge case)
+### Missile re-targeting edge cases
 
-When a homing missile's target meteor is destroyed (by itself or another missile), the target reference becomes invalid. Options:
+Two cases where the lock becomes stale mid-flight:
 
-- **(a) Fly straight** — once target dies, stop steering. Missile continues on its current heading. Simplest.
-- **(b) Re-acquire** — find the nearest alive meteor and steer toward it. More "smart," but might feel weird when missiles suddenly pivot.
+1. **Target meteor dies entirely** (other missile chewed the last voxel) — `target.IsAlive == false`. Missile stops homing and flies straight from its current velocity. No re-acquisition.
+2. **Target voxel destroyed but meteor still alive** — `target.IsVoxelPresent(gx, gy) == false`. Same behavior: stop homing, fly straight. The missile will still hit *something* because it was already on course for that region of the meteor.
 
-**Recommendation: (a)** for this iteration. Re-acquire can be added later if it feels missing.
+No nearest-meteor re-acquisition in this iteration. Homing is "aim at a specific square," and if the square is gone, the missile reverts to a dumb projectile. Can be made smarter later if it feels missing.
 
 ## Files touched
 
