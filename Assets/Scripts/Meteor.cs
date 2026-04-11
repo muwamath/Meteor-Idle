@@ -3,8 +3,8 @@ using UnityEngine;
 [RequireComponent(typeof(SpriteRenderer), typeof(CircleCollider2D))]
 public class Meteor : MonoBehaviour
 {
-    [SerializeField] private float fallSpeedMin = 1.2f;
-    [SerializeField] private float fallSpeedMax = 2.0f;
+    [SerializeField] private float fallSpeedMin = 0.4f;
+    [SerializeField] private float fallSpeedMax = 0.67f;
     [SerializeField] private float driftMax = 0.4f;
     [SerializeField] private float groundY = -8.7f;
     [SerializeField] private ParticleSystem voxelChunkPrefab;

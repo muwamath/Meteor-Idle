@@ -141,8 +141,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 97e63b6d1d0ad4858af2bedf422271e1, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Meteor
-  fallSpeedMin: 1.2
-  fallSpeedMax: 2
+  fallSpeedMin: 0.4
+  fallSpeedMax: 0.67
   driftMax: 0.4
   groundY: -8.7
   voxelChunkPrefab: {fileID: 4872757474425155906, guid: 2f8ec547c3e534e389bc9a752d9377fe, type: 3}

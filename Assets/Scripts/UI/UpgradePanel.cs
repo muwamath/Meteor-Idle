@@ -35,6 +35,14 @@ public class UpgradePanel : MonoBehaviour
 
         stats.ResetRuntime();
         RefreshAll();
+
+        var cg = GetComponent<CanvasGroup>();
+        if (cg != null)
+        {
+            cg.alpha = 0f;
+            cg.interactable = false;
+            cg.blocksRaycasts = false;
+        }
     }
 
     private void OnDestroy()

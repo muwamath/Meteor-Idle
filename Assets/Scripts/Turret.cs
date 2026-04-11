@@ -17,9 +17,16 @@ public class Turret : MonoBehaviour
 
     public TurretStats Stats => stats;
 
+    public void SetRuntimeRefs(MeteorSpawner spawner)
+    {
+        meteorSpawner = spawner;
+    }
+
     private void Awake()
     {
-        missilePool = new SimplePool<Missile>(missilePrefab, missilePoolParent != null ? missilePoolParent : transform, 8);
+        if (meteorSpawner == null) meteorSpawner = FindAnyObjectByType<MeteorSpawner>();
+        if (missilePoolParent == null) missilePoolParent = transform;
+        missilePool = new SimplePool<Missile>(missilePrefab, missilePoolParent, 8);
     }
 
     private void Update()
