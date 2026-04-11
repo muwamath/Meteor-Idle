@@ -2953,7 +2953,7 @@ MonoBehaviour:
   slotSpacing: 8
   prebuiltIndex: 1
   prebuiltWeapon: 0
-  buildCosts: 640000002c010000
+  buildCosts: 0100000001000000
   upgradePanel: {fileID: 532953551}
   buildSlotPanel: {fileID: 1519328962}
   meteorSpawner: {fileID: 1326236805}
