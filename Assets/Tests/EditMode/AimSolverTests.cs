@@ -88,5 +88,44 @@ namespace MeteorIdle.Tests.Editor
             Assert.AreEqual(3f, lead.x, Eps);
             Assert.AreEqual(4f, lead.y, Eps);
         }
+
+        // Parameterized sweep verifying the core invariant: the lead point
+        // returned by the solver, treated as the destination of a projectile
+        // moving at projectileSpeed from the shooter, lands at exactly the
+        // target's future position after the travel time. If this holds across
+        // a wide parameter space, the solver math is right regardless of edge
+        // cases. This is the regression gate that catches the "over-lead /
+        // under-lead at specific speed" class of bug the user flagged on
+        // 2026-04-11 during the iter/aim-fixes dev-WebGL verify.
+        //
+        // Parameters: (shooterX, shooterY, targetX, targetY, vx, vy, projectileSpeed)
+        [TestCase( 0f,  0f,   0f,  8f,    0f,    -0.5f,    6f)]   // straight-down meteor, base railgun
+        [TestCase( 0f,  0f,   0f,  8f,    0.3f,  -0.5f,    6f)]   // drifting meteor
+        [TestCase( 0f,  0f,   0f,  8f,    0f,    -0.5f,   36f)]   // upgraded railgun speed
+        [TestCase( 0f,  0f,   0f,  8f,    0.3f,  -0.5f,   36f)]   // both upgraded
+        [TestCase( 0f,  0f,   5f,  8f,    0f,    -0.5f,    6f)]   // off-axis meteor
+        [TestCase(-8f,  0f,   8f,  5f,   -0.4f,  -0.6f,    6f)]   // side slot, meteor on far side
+        [TestCase( 0f,  0f,   0f,  8f,   -0.4f,  -0.4f,  153f)]   // level-49 railgun speed (user's session)
+        [TestCase( 0f,  0f,   0f, 12f,    0.4f,  -0.67f,   4f)]   // base missile, slow drift
+        [TestCase( 0f,  0f,   0f, 12f,    0.4f,  -0.67f,  20f)]   // upgraded missile
+        public void InterceptPointSelfConsistent(
+            float sx, float sy, float tx, float ty,
+            float vx, float vy, float projectileSpeed)
+        {
+            Vector2 shooter = new Vector2(sx, sy);
+            Vector2 target  = new Vector2(tx, ty);
+            Vector2 velocity = new Vector2(vx, vy);
+
+            Vector2 lead = AimSolver.PredictInterceptPoint(shooter, target, velocity, projectileSpeed);
+
+            float distanceFromShooter = (lead - shooter).magnitude;
+            float predictedTime = distanceFromShooter / projectileSpeed;
+            Vector2 targetFuturePos = target + velocity * predictedTime;
+
+            Assert.AreEqual(targetFuturePos.x, lead.x, 0.001f,
+                "lead X must equal target X at predicted intercept time");
+            Assert.AreEqual(targetFuturePos.y, lead.y, 0.001f,
+                "lead Y must equal target Y at predicted intercept time");
+        }
     }
 }
