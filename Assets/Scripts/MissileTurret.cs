@@ -56,6 +56,11 @@ public class MissileTurret : TurretBase
             // the meteor's velocity as the target velocity — voxels move with
             // the meteor rigidly, so the voxel's future position is the voxel's
             // current world position plus meteor velocity * intercept time.
+            // Note: Missile.Update homing steers toward the voxel's *current*
+            // position each frame, so for Homing > 0 the initial lead is
+            // partially rewritten mid-flight. The lead is still the dominant
+            // benefit for Homing = 0 (base level) missiles, where the shot
+            // stays straight all the way to the predicted intercept.
             Vector3 voxelWorld = target.GetVoxelWorldPosition(gx, gy);
             Vector2 leadPoint = AimSolver.PredictInterceptPoint(
                 (Vector2)spawnPos,
