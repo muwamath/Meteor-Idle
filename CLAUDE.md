@@ -163,11 +163,26 @@ An editor-only overlay lets you tweak runtime values without grinding money. Key
 ## Before committing / pushing
 
 - `git status` should show only files you expect.
-- **Scrub every staged file for markers of the main account identity.** The exact grep pattern lives in the identity-leaks memory file (`memory/feedback_identity_leaks.md`) — do not write those tokens as literals into anything that lands in the repo. Zero matches is the only acceptable answer.
+- **Run the identity scrub before every commit:** `python3 tools/identity-scrub.py` against the staged diff. The script reads patterns from `.claude-identity-scrub` (gitignored, must exist at repo root) and exits 0 on clean / 1 on match / 2 on missing-patterns-file. Treat exit-1 and exit-2 as hard blockers. **Do not hand-write the identity tokens anywhere** — not in commit messages, not in docs, not in scratch scripts. The gitignored patterns file is the one place they live.
+- If `.claude-identity-scrub` is missing on a fresh clone, copy the tokens from `~/.claude/projects/-Users-matt-dev-Unity-Meteor-Idle/memory/feedback_identity_leaks.md` (the durable memory, outside the repo) into the new file, one per line. The scrub script's error message tells you how.
 - `git log --format="%an <%ae>" -5` should show only the repo-local identity (whatever `git config user.name` reports) on every recent commit. If any show the global/machine identity, something's broken — stop and diagnose.
 - Never force-push main without explicit user permission.
 - No `Co-Authored-By:` trailers on this repo.
 - Work on a branch, not on main. Branch names: `iter/<kebab-description>`.
+
+### Identity scrub tool
+
+`tools/identity-scrub.py` — committed to the repo, contains zero identity tokens. Takes one of:
+
+```bash
+python3 tools/identity-scrub.py                  # scan staged diff (default, run before every commit)
+python3 tools/identity-scrub.py main..HEAD       # scan a commit range (run before push)
+python3 tools/identity-scrub.py --working-tree   # scan entire working tree vs HEAD
+```
+
+On match, it prints *"IDENTITY LEAK DETECTED"* and a count — but **not the tokens themselves**, to avoid echoing them into logs or chat transcripts. Find which pattern matched by reading `.claude-identity-scrub` manually.
+
+On first use in a fresh clone, the script exits with code 2 and instructions. Populate `.claude-identity-scrub` with the tokens from the feedback-identity-leaks memory file, then re-run.
 
 ## Testing
 

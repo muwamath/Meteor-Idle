@@ -57,3 +57,8 @@ Assets/Screenshots.meta
 
 # === User's private scratch notes (not for Claude to read unless directed) ===
 todo.md
+
+# === Identity scrub patterns (see tools/identity-scrub.py) ===
+# Gitignored so the identity tokens themselves never land in the repo.
+# Populate on fresh clones from CLAUDE.md / feedback_identity_leaks.md.
+.claude-identity-scrub
