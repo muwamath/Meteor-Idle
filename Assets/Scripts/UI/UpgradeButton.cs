@@ -66,8 +66,16 @@ public class UpgradeButton : MonoBehaviour
         {
             var stat = railgunStats.Get(railgunStatId);
             if (stat == null) return;
-            label.text = $"{stat.displayName}\nLvl {stat.level} — ${stat.NextCost}";
-            if (button != null) button.interactable = money >= stat.NextCost;
+            if (stat.IsMaxed)
+            {
+                label.text = $"{stat.displayName}\nLvl {stat.level} — MAX";
+                if (button != null) button.interactable = false;
+            }
+            else
+            {
+                label.text = $"{stat.displayName}\nLvl {stat.level} — ${stat.NextCost}";
+                if (button != null) button.interactable = money >= stat.NextCost;
+            }
         }
     }
 }

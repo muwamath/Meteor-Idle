@@ -53,6 +53,7 @@ public class RailgunUpgradePanel : MonoBehaviour
     {
         var stat = stats.Get(id);
         if (stat == null) return;
+        if (stat.IsMaxed) return;
         if (GameManager.Instance != null && GameManager.Instance.TrySpend(stat.NextCost))
         {
             stats.ApplyUpgrade(id);

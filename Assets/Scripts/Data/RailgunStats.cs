@@ -23,17 +23,19 @@ public class RailgunStats : ScriptableObject
         public float perLevelAdd;
         public int baseCost;
         public float costGrowth = 1f;
+        public int maxLevel; // 0 = uncapped
         [NonSerialized] public int level;
 
         public float CurrentValue => baseValue + perLevelAdd * level;
         public int NextCost => Mathf.RoundToInt(baseCost * Mathf.Pow(costGrowth, level));
+        public bool IsMaxed => maxLevel > 0 && level >= maxLevel;
     }
 
     public Stat fireRate      = new Stat { id = RailgunStatId.FireRate,      displayName = "Fire Rate",      baseValue = 0.2f, perLevelAdd = 0.05f, baseCost = 1, costGrowth = 1f };
     public Stat rotationSpeed = new Stat { id = RailgunStatId.RotationSpeed, displayName = "Rotation Speed", baseValue = 20f,  perLevelAdd = 12f,   baseCost = 1, costGrowth = 1f };
     public Stat speed         = new Stat { id = RailgunStatId.Speed,         displayName = "Speed",          baseValue = 6f,   perLevelAdd = 3f,    baseCost = 1, costGrowth = 1f };
     public Stat weight        = new Stat { id = RailgunStatId.Weight,        displayName = "Weight",         baseValue = 4f,   perLevelAdd = 2f,    baseCost = 1, costGrowth = 1f };
-    public Stat caliber       = new Stat { id = RailgunStatId.Caliber,       displayName = "Caliber",        baseValue = 1f,   perLevelAdd = 1f,    baseCost = 1, costGrowth = 1f };
+    public Stat caliber       = new Stat { id = RailgunStatId.Caliber,       displayName = "Caliber",        baseValue = 1f,   perLevelAdd = 1f,    baseCost = 1, costGrowth = 1f, maxLevel = 2 };
 
     public event Action OnChanged;
 
@@ -63,6 +65,7 @@ public class RailgunStats : ScriptableObject
     {
         var stat = Get(id);
         if (stat == null) return;
+        if (stat.IsMaxed) return;
         stat.level++;
         OnChanged?.Invoke();
     }

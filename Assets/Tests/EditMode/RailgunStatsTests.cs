@@ -85,6 +85,33 @@ namespace MeteorIdle.Tests.Editor
         }
 
         [Test]
+        public void ApplyUpgrade_Caliber_StopsAtMaxLevel()
+        {
+            // Caliber is spec'd to cap at level 2 (width 5).
+            Assert.AreEqual(2, _stats.caliber.maxLevel);
+
+            _stats.ApplyUpgrade(RailgunStatId.Caliber);
+            _stats.ApplyUpgrade(RailgunStatId.Caliber);
+            Assert.AreEqual(2, _stats.caliber.level);
+            Assert.IsTrue(_stats.caliber.IsMaxed);
+
+            int events = 0;
+            _stats.OnChanged += () => events++;
+            _stats.ApplyUpgrade(RailgunStatId.Caliber);
+
+            Assert.AreEqual(2, _stats.caliber.level, "level must not increment past max");
+            Assert.AreEqual(0, events, "OnChanged must not fire when capped");
+        }
+
+        [Test]
+        public void IsMaxed_FalseForUncappedStats()
+        {
+            _stats.speed.level = 100;
+            Assert.IsFalse(_stats.speed.IsMaxed);
+            Assert.AreEqual(0, _stats.speed.maxLevel);
+        }
+
+        [Test]
         public void ResetRuntime_ZerosAllLevels_AndFiresEvent()
         {
             _stats.ApplyUpgrade(RailgunStatId.Speed);
