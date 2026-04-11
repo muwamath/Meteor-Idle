@@ -179,6 +179,129 @@ public class Meteor : MonoBehaviour
         return destroyed;
     }
 
+    // Line-walking voxel destruction for the railgun. Walks the grid along
+    // worldDirection from entryWorld, destroying live voxels within a
+    // perpendicular band of width caliberWidth (1 = 1 cell, 2 = 3 cells,
+    // 3 = 5 cells). Each live cell destroyed consumes 1 from the budget.
+    // Empty cells are free — the round glides past without losing budget.
+    // Stops when budget hits 0 or the ray exits the grid. Returns the number
+    // of voxels actually destroyed and, via out param, the world position
+    // where the walk terminated (used by RailgunRound to continue to the
+    // next meteor with remaining budget).
+    public int ApplyTunnel(
+        Vector3 entryWorld,
+        Vector3 worldDirection,
+        int budget,
+        int caliberWidth,
+        out Vector3 exitWorld)
+    {
+        exitWorld = entryWorld;
+        if (dead || aliveCount == 0 || budget <= 0) return 0;
+
+        Vector3 local = transform.InverseTransformPoint(entryWorld);
+        Vector3 localDir = transform.InverseTransformDirection(worldDirection).normalized;
+        const float halfExtent = 0.75f;
+        float localToGrid = VoxelMeteorGenerator.GridSize / (halfExtent * 2f);
+
+        float gx = (local.x + halfExtent) * localToGrid;
+        float gy = (local.y + halfExtent) * localToGrid;
+        float dx = localDir.x;
+        float dy = localDir.y;
+
+        // Perpendicular direction (2D rotation by 90°) for caliber width.
+        float perpX = -dy;
+        float perpY = dx;
+        int halfBand = Mathf.Max(0, caliberWidth - 1); // 0, 1, 2 for caliber 1, 2, 3
+
+        int consumed = 0;
+        bool anyPainted = false;
+        // GridSize*4 = 40 half-cell steps = 20 cells of walk distance, enough
+        // to traverse the full 10-cell grid even when entry is several cells
+        // outside the boundary (common: missiles hit the circle collider at
+        // world distance ~0.75 from center, which lands outside the square
+        // voxel grid by ~5 cells along the approach direction).
+        int maxSteps = VoxelMeteorGenerator.GridSize * 4;
+
+        // Track whether the walker has entered the grid yet. Entry points can
+        // start outside the grid (that's the common case — see note above);
+        // we only want to terminate when we've been INSIDE and then left the
+        // other side. Without this flag, entries below the grid would break
+        // out on the first step without ever destroying anything.
+        bool hasEnteredGrid = false;
+
+        for (int step = 0; step < maxSteps; step++)
+        {
+            if (budget <= 0) break;
+
+            bool inGridNow =
+                gx >= 0f && gx < VoxelMeteorGenerator.GridSize &&
+                gy >= 0f && gy < VoxelMeteorGenerator.GridSize;
+            if (inGridNow) hasEnteredGrid = true;
+
+            // Destroy all live cells within the perpendicular band at this step.
+            for (int offset = -halfBand; offset <= halfBand; offset++)
+            {
+                float cellX = gx + perpX * offset;
+                float cellY = gy + perpY * offset;
+                int ix = Mathf.FloorToInt(cellX);
+                int iy = Mathf.FloorToInt(cellY);
+                if (ix < 0 || ix >= VoxelMeteorGenerator.GridSize) continue;
+                if (iy < 0 || iy >= VoxelMeteorGenerator.GridSize) continue;
+                if (!voxels[ix, iy]) continue; // empty — free, doesn't consume budget
+
+                voxels[ix, iy] = false;
+                VoxelMeteorGenerator.ClearVoxel(texture, ix, iy);
+                anyPainted = true;
+                consumed++;
+                budget--;
+
+                if (voxelChunkPrefab != null)
+                {
+                    Vector3 worldVoxel = VoxelCenterToWorld(ix, iy);
+                    var burst = Instantiate(voxelChunkPrefab, worldVoxel, Quaternion.identity);
+                    burst.Play();
+                    Destroy(burst.gameObject, 1.5f);
+                }
+
+                if (budget <= 0) break;
+            }
+
+            // Advance half a cell along the ray (sub-cell steps so adjacent
+            // cells along the direction both get checked).
+            gx += dx * 0.5f;
+            gy += dy * 0.5f;
+
+            // Only terminate once we've been inside the grid AND have now
+            // walked back out the other side. Entries from outside keep
+            // walking until they enter.
+            if (hasEnteredGrid)
+            {
+                if (gx < -0.5f || gx >= VoxelMeteorGenerator.GridSize + 0.5f) break;
+                if (gy < -0.5f || gy >= VoxelMeteorGenerator.GridSize + 0.5f) break;
+            }
+        }
+
+        if (anyPainted) texture.Apply();
+
+        aliveCount -= consumed;
+        if (aliveCount <= 0)
+        {
+            dead = true;
+            owner?.Release(this);
+        }
+
+        // Report where the walk terminated in world space — used by the
+        // railgun round to compute where to continue when piercing to the
+        // next meteor.
+        Vector3 localExit = new Vector3(
+            gx / localToGrid - halfExtent,
+            gy / localToGrid - halfExtent,
+            0f);
+        exitWorld = transform.TransformPoint(localExit);
+
+        return consumed;
+    }
+
     // Full-grid scan for the alive voxel closest to (gx, gy). Only called as a
     // last-resort fallback when the walk-inward search ended on a dead cell —
     // guarantees that a missile collision always lands on some live voxel so we
