@@ -7,6 +7,11 @@ public class Meteor : MonoBehaviour
     [SerializeField] private float fallSpeedMax = 0.67f;
     [SerializeField] private float driftMax = 0.4f;
     [SerializeField] private float groundY = -8.7f;
+    // Below this Y the meteor becomes untargetable (turrets ignore it) and its
+    // sprite fades from 1 → 0 over fadeDuration before despawning. This prevents
+    // turrets from swinging sideways to track meteors drifting past the base.
+    [SerializeField] private float fadeStartY = -7.88f;
+    [SerializeField] private float fadeDuration = 0.5f;
     [SerializeField] private ParticleSystem voxelChunkPrefab;
 
     private SpriteRenderer sr;
@@ -19,9 +24,11 @@ public class Meteor : MonoBehaviour
     private Sprite sprite;
     private int aliveCount;
     private bool dead;
+    private bool fading;
+    private float fadeTimer;
 
     public int AliveVoxelCount => aliveCount;
-    public bool IsAlive => !dead && aliveCount > 0 && gameObject.activeInHierarchy;
+    public bool IsAlive => !dead && !fading && aliveCount > 0 && gameObject.activeInHierarchy;
 
     private void Awake()
     {
@@ -34,6 +41,8 @@ public class Meteor : MonoBehaviour
     {
         owner = spawner;
         dead = false;
+        fading = false;
+        fadeTimer = 0f;
         transform.position = position;
         transform.rotation = Quaternion.identity;
         transform.localScale = Vector3.one * sizeScale;
@@ -60,6 +69,30 @@ public class Meteor : MonoBehaviour
     {
         if (dead) return;
         transform.position += (Vector3)(velocity * Time.deltaTime);
+
+        if (!fading && transform.position.y < fadeStartY)
+        {
+            fading = true;
+            fadeTimer = 0f;
+        }
+
+        if (fading)
+        {
+            fadeTimer += Time.deltaTime;
+            float t = Mathf.Clamp01(fadeTimer / fadeDuration);
+            if (sr != null)
+            {
+                var c = sr.color;
+                c.a = 1f - t;
+                sr.color = c;
+            }
+            if (t >= 1f)
+            {
+                ReturnSilently();
+                return;
+            }
+        }
+
         if (transform.position.y < groundY)
             ReturnSilently();
     }

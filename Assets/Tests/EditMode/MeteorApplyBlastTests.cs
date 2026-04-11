@@ -177,6 +177,30 @@ namespace MeteorIdle.Tests.Editor
         }
 
         [Test]
+        public void FadeThreshold_AboveThreshold_MeteorIsAlive()
+        {
+            var m = NewMeteor();
+            // Spawn places the meteor at (0,0), well above fadeStartY (-7.88).
+            m.transform.position = new Vector3(0f, -7.0f, 0f);
+            TestHelpers.InvokeUpdate(m);
+            Assert.IsTrue(m.IsAlive,
+                "meteor above the fade threshold must stay alive");
+            Destroy(m);
+        }
+
+        [Test]
+        public void FadeThreshold_BelowThreshold_BecomesUntargetable()
+        {
+            var m = NewMeteor();
+            // Drop the meteor below fadeStartY and tick Update once.
+            m.transform.position = new Vector3(0f, -8.0f, 0f);
+            TestHelpers.InvokeUpdate(m);
+            Assert.IsFalse(m.IsAlive,
+                "meteor below the fade threshold must drop out of turret targeting");
+            Destroy(m);
+        }
+
+        [Test]
         public void ScaleInvariant_SameGridDestructionRegardlessOfScale()
         {
             // The key property from CLAUDE.md: gridRadius = worldRadius * localToGrid —
