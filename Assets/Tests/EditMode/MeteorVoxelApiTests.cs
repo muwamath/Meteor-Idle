@@ -100,6 +100,58 @@ namespace MeteorIdle.Tests.Editor
         }
 
         [Test]
+        public void PickRandomCoreVoxel_FreshMeteor_OnlyPicksCoreCells()
+        {
+            // Size 1.0 → coreCount = 3. Run 100 picks and assert every one
+            // lands on a Core cell (via reflection on the private kind[,]).
+            var m = NewMeteor(scale: 1f);
+            var kindField = typeof(Meteor).GetField(
+                "kind",
+                System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+            var kind = (VoxelKind[,])kindField.GetValue(m);
+
+            for (int i = 0; i < 100; i++)
+            {
+                Assert.IsTrue(m.PickRandomCoreVoxel(out int gx, out int gy));
+                Assert.AreEqual(VoxelKind.Core, kind[gx, gy],
+                    $"iteration {i}: picked ({gx},{gy}) which is not a core cell");
+            }
+            Destroy(m);
+        }
+
+        [Test]
+        public void HasLiveCore_FalseAfterAllCoresDestroyed_DirtStillAlive()
+        {
+            // Size 0.525 → coreCount = 1, coreHp = 1. Blast that one core
+            // with a tiny radius so dirt around it survives.
+            var m = NewMeteor(scale: 0.525f);
+            Assert.IsTrue(m.HasLiveCore, "fresh meteor must have at least one core");
+            Assert.AreEqual(1, m.CoreVoxelCount);
+
+            Assert.IsTrue(m.PickRandomCoreVoxel(out int cgx, out int cgy));
+            Vector3 coreWorld = m.GetVoxelWorldPosition(cgx, cgy);
+            m.ApplyBlast(coreWorld, 0.05f); // one-cell radius
+
+            Assert.IsFalse(m.HasLiveCore, "core should be gone");
+            Assert.AreEqual(0, m.CoreVoxelCount);
+            // Dirt may or may not remain depending on blast math, but
+            // HasLiveCore + IsAlive are independent — a coreless meteor
+            // with live dirt is still "alive" in the pool sense, just
+            // not a valid turret target.
+            Destroy(m);
+        }
+
+        [Test]
+        public void PickRandomCoreVoxel_DeadMeteor_ReturnsFalse()
+        {
+            var m = NewMeteor(scale: 0.525f);
+            m.ApplyBlast(Vector3.zero, 5f); // nuke everything
+            Assert.AreEqual(0, m.AliveVoxelCount);
+            Assert.IsFalse(m.PickRandomCoreVoxel(out _, out _));
+            Destroy(m);
+        }
+
+        [Test]
         public void IsAlive_TracksDestructionState()
         {
             // Smallest-size meteor: coreHp = 1 so a single huge blast kills

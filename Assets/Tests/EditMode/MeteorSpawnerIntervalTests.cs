@@ -19,8 +19,8 @@ namespace MeteorIdle.Tests.Editor
         // Mirror the serialized defaults in MeteorSpawner.cs. If the defaults
         // ever drift, update here alongside the source — the test's whole job
         // is to pin them.
-        private const float InitialInterval = 4.0f;
-        private const float MinInterval = 1.5f;
+        private const float InitialInterval = 12.0f;
+        private const float MinInterval = 4.5f;
         private const float RampDurationSeconds = 180f;
 
         [SetUp]

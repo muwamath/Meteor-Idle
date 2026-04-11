@@ -2834,8 +2834,8 @@ MonoBehaviour:
   poolParent: {fileID: 1427717870}
   spawnY: 10
   spawnXRange: 15
-  initialInterval: 4
-  minInterval: 1.5
+  initialInterval: 12
+  minInterval: 4.5
   rampDurationSeconds: 180
   prewarm: 12
 --- !u!4 &1326236806

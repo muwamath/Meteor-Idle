@@ -16,6 +16,11 @@ public struct DestroyResult
 [RequireComponent(typeof(SpriteRenderer), typeof(CircleCollider2D))]
 public class Meteor : MonoBehaviour
 {
+    // Money paid out per core voxel destroyed. Dirt voxels pay nothing.
+    // Iter 2 will lift this into a per-type asteroid field; until then it
+    // lives here as a single named constant so future wiring is mechanical.
+    public const int CoreBaseValue = 5;
+
     [SerializeField] private float fallSpeedMin = 0.4f;
     [SerializeField] private float fallSpeedMax = 0.67f;
     [SerializeField] private float driftMax = 0.4f;
@@ -51,6 +56,34 @@ public class Meteor : MonoBehaviour
     public int AliveVoxelCount => aliveCount;
     public Vector2 Velocity => velocity;
     public bool IsAlive => !dead && !fading && aliveCount > 0 && gameObject.activeInHierarchy;
+
+    // True when at least one Core cell is still alive. Turrets only lock
+    // onto meteors where this is true — dirt-only remnants are ignored and
+    // the turret holds its last aim until a cored meteor comes into play.
+    public bool HasLiveCore
+    {
+        get
+        {
+            if (kind == null) return false;
+            for (int y = 0; y < VoxelMeteorGenerator.GridSize; y++)
+                for (int x = 0; x < VoxelMeteorGenerator.GridSize; x++)
+                    if (kind[x, y] == VoxelKind.Core) return true;
+            return false;
+        }
+    }
+
+    public int CoreVoxelCount
+    {
+        get
+        {
+            if (kind == null) return 0;
+            int n = 0;
+            for (int y = 0; y < VoxelMeteorGenerator.GridSize; y++)
+                for (int x = 0; x < VoxelMeteorGenerator.GridSize; x++)
+                    if (kind[x, y] == VoxelKind.Core) n++;
+            return n;
+        }
+    }
 
     private void Awake()
     {
@@ -387,6 +420,41 @@ public class Meteor : MonoBehaviour
         if (kind == null) return false;
         if (gx < 0 || gy < 0 || gx >= VoxelMeteorGenerator.GridSize || gy >= VoxelMeteorGenerator.GridSize) return false;
         return kind[gx, gy] != VoxelKind.Empty;
+    }
+
+    // Targeting primitive: pick a random live CORE cell. Returns false when
+    // no live cores exist — the turret then holds fire (or looks for a
+    // different target). Mirrors PickRandomPresentVoxel's counting-then-
+    // indexing pattern so a uniform distribution across live cores is cheap
+    // on the 10x10 grid.
+    public bool PickRandomCoreVoxel(out int gx, out int gy)
+    {
+        gx = 0; gy = 0;
+        if (kind == null) return false;
+
+        int coreCount = 0;
+        for (int y = 0; y < VoxelMeteorGenerator.GridSize; y++)
+            for (int x = 0; x < VoxelMeteorGenerator.GridSize; x++)
+                if (kind[x, y] == VoxelKind.Core) coreCount++;
+
+        if (coreCount == 0) return false;
+
+        int targetIndex = Random.Range(0, coreCount);
+        int seen = 0;
+        for (int y = 0; y < VoxelMeteorGenerator.GridSize; y++)
+        {
+            for (int x = 0; x < VoxelMeteorGenerator.GridSize; x++)
+            {
+                if (kind[x, y] != VoxelKind.Core) continue;
+                if (seen == targetIndex)
+                {
+                    gx = x; gy = y;
+                    return true;
+                }
+                seen++;
+            }
+        }
+        return false;
     }
 
     public bool PickRandomPresentVoxel(out int gx, out int gy)

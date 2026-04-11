@@ -89,10 +89,12 @@ public class RailgunRound : MonoBehaviour
             remainingWeight -= damageDealt;
             alreadyTunneled.Add(meteor);
 
-            // Phase 3 still pays on total destroyed — Phase 6 will flip to
-            // core-only payouts.
-            if (result.TotalDestroyed > 0 && GameManager.Instance != null)
-                GameManager.Instance.AddMoney(result.TotalDestroyed);
+            // Core-only economy: dirt tunneled on the way to (or past) a
+            // core is free — pays nothing. Only core voxels destroyed pay
+            // out, at CoreBaseValue per core.
+            int payout = result.coreDestroyed * Meteor.CoreBaseValue;
+            if (payout > 0 && GameManager.Instance != null)
+                GameManager.Instance.AddMoney(payout);
         }
 
         transform.position += direction * stepDistance;

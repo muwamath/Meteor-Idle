@@ -42,11 +42,17 @@ public class MissileTurret : TurretBase
 
     protected override void Fire(Meteor target)
     {
+        // Iter 1: turrets only ever aim at core voxels. FindTarget already
+        // filtered for HasLiveCore, so PickRandomCoreVoxel should almost
+        // always succeed here. The only failure mode is a race: the target's
+        // last core died between FindTarget and Fire in the same frame. In
+        // that case we skip the shot rather than firing blind at dirt —
+        // "never intentionally aim at dirt" is the rule.
+        int gx = 0, gy = 0;
+        if (!target.PickRandomCoreVoxel(out gx, out gy)) return;
+
         var missile = missilePool.Get();
         Vector3 spawnPos = muzzle != null ? muzzle.position : barrel.position;
-
-        int gx = 0, gy = 0;
-        bool hasVoxel = target.PickRandomPresentVoxel(out gx, out gy);
 
         // Single source of truth: the ProjectileSpeed getter. Both the lead
         // solver call and the missile's launch velocity magnitude must read
@@ -54,40 +60,28 @@ public class MissileTurret : TurretBase
         // actually reach at the assumed speed. Do not read statsInstance
         // directly here.
         float speed = ProjectileSpeed;
-        Vector2 dir;
-        if (hasVoxel)
-        {
-            // Lead-aim at the specific voxel the missile will home to. Using
-            // the meteor's velocity as the target velocity — voxels move with
-            // the meteor rigidly, so the voxel's future position is the voxel's
-            // current world position plus meteor velocity * intercept time.
-            // Note: Missile.Update homing steers toward the voxel's *current*
-            // position each frame, so for Homing > 0 the initial lead is
-            // partially rewritten mid-flight. The lead is still the dominant
-            // benefit for Homing = 0 (base level) missiles, where the shot
-            // stays straight all the way to the predicted intercept.
-            Vector3 voxelWorld = target.GetVoxelWorldPosition(gx, gy);
-            Vector2 leadPoint = AimSolver.PredictInterceptPoint(
-                (Vector2)spawnPos,
-                (Vector2)voxelWorld,
-                target.Velocity,
-                speed);
-            dir = (leadPoint - (Vector2)spawnPos).normalized;
-            if (dir.sqrMagnitude < 0.0001f) dir = barrel.up;
-        }
-        else
-        {
-            dir = barrel.up;
-        }
 
-        Meteor homingTarget = hasVoxel ? target : null;
+        // Lead-aim at the specific core voxel the missile will home to. The
+        // voxel moves rigidly with the meteor, so its future position is
+        // current voxel world position + meteor velocity * intercept time.
+        // Missile.Update homing steers toward the voxel's current position
+        // each frame; for Homing 0 the initial lead carries the whole way.
+        Vector3 voxelWorld = target.GetVoxelWorldPosition(gx, gy);
+        Vector2 leadPoint = AimSolver.PredictInterceptPoint(
+            (Vector2)spawnPos,
+            (Vector2)voxelWorld,
+            target.Velocity,
+            speed);
+        Vector2 dir = (leadPoint - (Vector2)spawnPos).normalized;
+        if (dir.sqrMagnitude < 0.0001f) dir = barrel.up;
+
         missile.Launch(
             this,
             spawnPos,
             dir * speed,
             statsInstance.damage.CurrentValue,
             statsInstance.blastRadius.CurrentValue,
-            homingTarget,
+            target,
             gx,
             gy,
             statsInstance.homing.CurrentValue);

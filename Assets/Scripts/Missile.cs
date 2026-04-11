@@ -95,17 +95,18 @@ public class Missile : MonoBehaviour
         float totalRadius = impactRadius + blastRadius;
         var result = meteor.ApplyBlast(transform.position, totalRadius);
 
-        // Phase 2 still pays on total destroyed so gameplay balance is unchanged
-        // until Phase 6 flips to core-only payouts. Keeps every commit runnable.
-        if (result.TotalDestroyed > 0)
+        // Core-only economy: dirt pays nothing, cores pay CoreBaseValue each.
+        // A dirt-only hit is silent (no money, no floating text).
+        int payout = result.coreDestroyed * Meteor.CoreBaseValue;
+        if (payout > 0)
         {
             if (GameManager.Instance != null)
-                GameManager.Instance.AddMoney(result.TotalDestroyed);
+                GameManager.Instance.AddMoney(payout);
 
             if (floatingTextPrefab != null)
             {
                 var ft = Instantiate(floatingTextPrefab, transform.position, Quaternion.identity);
-                ft.Show($"+${result.TotalDestroyed}");
+                ft.Show($"+${payout}");
             }
         }
 

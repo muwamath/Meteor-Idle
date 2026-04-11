@@ -97,6 +97,34 @@ namespace MeteorIdle.Tests.PlayMode
         }
 
         [UnityTest]
+        public IEnumerator FindTarget_IgnoresCorelessMeteorsEvenIfAlive()
+        {
+            yield return SetupTurretScene();
+
+            // Closer meteor: alive but coreless (blast just the core cell).
+            // Farther meteor: fresh, cores intact. Closest-pick would prefer
+            // the closer one, but the HasLiveCore filter must skip it.
+            var closerCoreless = SpawnTestMeteor(new Vector3(0f, 3f, 0f), seed: 77, scale: 0.525f);
+            var fartherCored  = SpawnTestMeteor(new Vector3(0f, 5f, 0f), seed: 88);
+            _injectedActive.Add(closerCoreless);
+            _injectedActive.Add(fartherCored);
+
+            Assert.IsTrue(closerCoreless.PickRandomCoreVoxel(out int cgx, out int cgy));
+            Vector3 coreWorld = closerCoreless.GetVoxelWorldPosition(cgx, cgy);
+            closerCoreless.ApplyBlast(coreWorld, 0.05f);
+            Assert.IsFalse(closerCoreless.HasLiveCore,
+                "closer meteor should be coreless after targeted blast");
+            Assert.IsTrue(closerCoreless.IsAlive,
+                "closer meteor should still be alive — dirt remains");
+
+            Assert.AreSame(
+                fartherCored, _turret.FindTargetForTest(),
+                "turret must skip the coreless meteor and target the cored one");
+
+            TeardownScene();
+        }
+
+        [UnityTest]
         public IEnumerator FindTarget_IgnoresDeadMeteors()
         {
             yield return SetupTurretScene();

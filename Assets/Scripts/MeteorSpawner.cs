@@ -6,8 +6,8 @@ public class MeteorSpawner : MonoBehaviour
     [SerializeField] private Transform poolParent;
     [SerializeField] private float spawnY = 10f;
     [SerializeField] private float spawnXRange = 15f;
-    [SerializeField] private float initialInterval = 4.0f;
-    [SerializeField] private float minInterval = 1.5f;
+    [SerializeField] private float initialInterval = 12.0f;
+    [SerializeField] private float minInterval = 4.5f;
     [SerializeField] private float rampDurationSeconds = 180f;
     [SerializeField] private int prewarm = 12;
 

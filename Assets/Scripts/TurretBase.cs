@@ -65,7 +65,12 @@ public abstract class TurretBase : MonoBehaviour
         float bestSqr = float.PositiveInfinity;
         foreach (var m in meteorSpawner.ActiveMeteors)
         {
-            if (m == null || !m.IsAlive) continue;
+            // HasLiveCore is the Iter 1 targeting filter: dirt-only remnants
+            // are never engaged. A meteor with zero cores is not a valid
+            // target, even if it's alive and still has dirt voxels. Turrets
+            // with no valid target hold their last aim (no rotation, no
+            // reload reset) — Update early-returns on null.
+            if (m == null || !m.IsAlive || !m.HasLiveCore) continue;
             float d = ((Vector2)(m.transform.position - barrel.position)).sqrMagnitude;
             if (d < bestSqr)
             {

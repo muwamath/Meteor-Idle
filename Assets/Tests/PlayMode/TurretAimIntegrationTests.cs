@@ -235,19 +235,12 @@ namespace MeteorIdle.Tests.PlayMode
                 fireRateLevel: 34,
                 homingLevel: 0);
 
-        // User-reported scenario 2026-04-11 (second report, screenshot 3):
-        // Railgun fires a shot that tunnels through the meteor's center, then
-        // subsequent shots aim at the meteor's (now-dead) center, fly through
-        // the existing tunnel, and hit nothing. Meteor stays partially alive
-        // forever.
-        //
-        // This test fires many shots at a STATIONARY meteor and asserts that
-        // most of its voxels get destroyed. On pre-fix code the first shot
-        // carves a tunnel (~4 voxels destroyed), subsequent shots fire through
-        // the same tunnel in empty cells (0 voxels destroyed each), and the
-        // meteor stays at roughly initial - 4 voxels. Post-fix, the railgun
-        // picks a random live voxel to aim at for each shot, so over ~20 shots
-        // many different voxels get hit.
+        // Under Iter 1 core-only targeting, the railgun's job on a stationary
+        // meteor is to drain all the cores — once CoreVoxelCount reaches 0
+        // the meteor is no longer a valid target (HasLiveCore is false) and
+        // the turret holds fire. This replaces Iter 0's "destroys many voxels"
+        // assertion, which is no longer achievable: the railgun only ever
+        // aims at cores, and stops entirely once the last core is dead.
         [UnityTest]
         public IEnumerator Railgun_MultipleShots_DrainsStationaryMeteor()
         {
@@ -260,49 +253,42 @@ namespace MeteorIdle.Tests.PlayMode
             var spawner = SpawnTestSpawner();
             turret.SetRuntimeRefs(spawner);
 
-            // Boost fire rate, rotation, and speed so the test runs quickly.
-            // Leave weight at base (4 voxels per shot) so the per-shot budget
-            // can't single-shot the meteor by itself.
-            turret.Stats.fireRate.level = 100;       // 5.2 Hz, chargeDuration ~0.192s
-            turret.Stats.rotationSpeed.level = 100;  // 1220 deg/s — rotation converges instantly
-            turret.Stats.speed.level = 20;           // 66 world/s — flight ~0.15s at distance 10
+            // Boost fire rate, rotation, speed, and weight so the test runs
+            // quickly. Higher weight means each shot can drop a core cleanly
+            // (HP 4 needs 4 damage — base weight 4 only just suffices and
+            // leaves no margin for dirt in the path).
+            turret.Stats.fireRate.level = 100;
+            turret.Stats.rotationSpeed.level = 100;
+            turret.Stats.speed.level = 20;
+            turret.Stats.weight.level = 10;
 
-            // Stationary meteor directly above. No lead needed. The turret's
-            // FindTarget always picks this meteor.
+            // Stationary meteor directly above. No lead needed.
             var meteor = SpawnTestMeteor(new Vector3(0f, 5f, 0f));
             SetMeteorVelocity(meteor, Vector2.zero);
-            int initialVoxels = meteor.AliveVoxelCount;
-            Assert.Greater(initialVoxels, 30, "meteor should have plenty of voxels for this test");
+            int initialCores = meteor.CoreVoxelCount;
+            Assert.Greater(initialCores, 0, "meteor must start with at least one core");
             GetSpawnerActiveList(spawner).Add(meteor);
 
-            // Force the first charge ready. Subsequent shots charge naturally
-            // in ~0.192s each.
             ForceRailgunReady(turret);
 
-            // Wait for damage to accumulate via polling. ~25 shots at 5.2 Hz
-            // is ~4.8s of charge + small rotation/flight overhead. Under
-            // Phase 3 weight-on-damage cores absorb more budget, so we
-            // give a 12s max window.
-            const float maxWait = 12f;
+            // Poll for all cores drained. Each core is HP ≤ 5 and the
+            // railgun can put ~20 damage per shot at weight 10 + caliber 1,
+            // so ~N shots where N = coreCount usually suffices. 15s max.
+            const float maxWait = 15f;
             const float pollInterval = 0.25f;
-            int targetDestroyed = 20;
             float elapsed = 0f;
-            while (elapsed < maxWait &&
-                   (initialVoxels - meteor.AliveVoxelCount) <= targetDestroyed)
+            while (elapsed < maxWait && meteor.CoreVoxelCount > 0)
             {
                 yield return new WaitForSeconds(pollInterval);
                 elapsed += pollInterval;
             }
 
-            int finalVoxels = meteor.AliveVoxelCount;
-            int destroyed = initialVoxels - finalVoxels;
-
-            Assert.Greater(
-                destroyed, targetDestroyed,
-                $"railgun should destroy more than {targetDestroyed} voxels over ~{maxWait:F0}s " +
-                $"(initial={initialVoxels}, final={finalVoxels}, destroyed={destroyed}). " +
-                $"If this is stuck near {initialVoxels - 4} the railgun is re-targeting a tunneled " +
-                $"dead center instead of live voxels.");
+            Assert.AreEqual(
+                0, meteor.CoreVoxelCount,
+                $"railgun should drain all cores within {maxWait:F0}s " +
+                $"(initialCores={initialCores}, remaining={meteor.CoreVoxelCount}). " +
+                $"If cores are stuck the railgun is re-targeting a dead cache " +
+                $"or firing through empty cells.");
 
             TeardownScene();
         }

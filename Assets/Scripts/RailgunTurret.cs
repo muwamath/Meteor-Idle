@@ -30,19 +30,14 @@ public class RailgunTurret : TurretBase
     private float chargeTimer;
     private RailgunStats statsInstance;
 
-    // Cached aim voxel — the specific live voxel on the current target the
-    // barrel is rotating toward and will shoot at. Picked via
-    // Meteor.PickRandomPresentVoxel once per shot cycle. Re-picked when: no
-    // voxel cached, target changed, the cached voxel died, or we just fired.
-    //
-    // This exists because the railgun's straight-line shot was previously
-    // aimed at Meteor.transform.position (the meteor's center). After a shot
-    // carves a tunnel through the center, subsequent shots aimed at that same
-    // center would fly through the (now-dead) tunnel without hitting any live
-    // voxels — the meteor would sit there partially destroyed forever.
-    // Aiming at a random LIVE voxel each shot guarantees the round's ray
-    // crosses still-present voxels, so the walker in Meteor.ApplyTunnel
-    // actually consumes cells and damage continues.
+    // Cached aim voxel — the specific live CORE voxel on the current target
+    // the barrel is rotating toward and will shoot at. Re-picked when: no
+    // voxel cached, target changed, or the cached voxel died. Deliberately
+    // NOT cleared on fire — with multi-HP cores we WANT consecutive shots
+    // on the same core until it dies, not a re-pick every shot (Iter 0's
+    // post-fire invalidation was the right call when aim was "meteor
+    // center", but core-only targeting makes the re-aim hop unnecessary and
+    // visually jittery).
     private Meteor aimVoxelTarget;
     private int aimVoxelGx;
     private int aimVoxelGy;
@@ -89,16 +84,22 @@ public class RailgunTurret : TurretBase
         var target = FindTarget();
         if (target == null)
         {
+            // No valid target — hold last aim (no rotation, no charge reset).
+            // The barrel freezes mid-sweep until a cored meteor appears,
+            // then it swings to it on the next tick. Drop the cached voxel
+            // so the next target gets a fresh pick.
             aimVoxelTarget = null;
             hasAimVoxel = false;
             return;
         }
 
         RefreshAimVoxel(target);
+        // FindTarget guaranteed HasLiveCore, so RefreshAimVoxel should have
+        // succeeded. The only failure mode is a same-frame race where the
+        // last core just died — treat as "no target this tick, hold aim".
+        if (!hasAimVoxel) return;
 
-        Vector2 aimWorld = hasAimVoxel
-            ? (Vector2)target.GetVoxelWorldPosition(aimVoxelGx, aimVoxelGy)
-            : (Vector2)target.transform.position;
+        Vector2 aimWorld = (Vector2)target.GetVoxelWorldPosition(aimVoxelGx, aimVoxelGy);
         Vector2 aimPoint = AimSolver.PredictInterceptPoint(
             (Vector2)barrel.position,
             aimWorld,
@@ -116,31 +117,31 @@ public class RailgunTurret : TurretBase
             Fire(target);
             chargeTimer = 0f;
             if (barrelSprite != null) barrelSprite.color = ChargeStops[0];
-            // Invalidate the cached aim voxel so the next Update picks a
-            // fresh one. Without this, subsequent shots would re-target the
-            // same voxel (or, if it's now dead, the meteor center — which is
-            // exactly the tunnel-through bug we're avoiding).
-            aimVoxelTarget = null;
-            hasAimVoxel = false;
+            // Do NOT invalidate the aim voxel here. Multi-HP cores are the
+            // point of Iter 1 — we want consecutive shots focused on the
+            // same core until it dies. RefreshAimVoxel re-picks naturally
+            // when the cached voxel goes Empty.
         }
     }
 
-    // Pick a random live voxel on target to aim at. Re-pick only when we
-    // need to (no voxel, different target, or the voxel died between ticks).
+    // Pick a random live CORE voxel on target to aim at. Re-pick only when
+    // we need to (no voxel, different target, or the cached core died).
     // Called once per Update tick so the barrel rotates smoothly toward a
-    // stable point rather than jittering between randomly-picked voxels
-    // every frame.
+    // stable point rather than jittering between randomly-picked voxels.
+    // Using IsCoreVoxel instead of IsVoxelPresent means dirt that happens
+    // to land under the cached coords (shouldn't happen — cores don't turn
+    // into dirt — but defensive) triggers a re-pick.
     private void RefreshAimVoxel(Meteor target)
     {
-        bool needPick =
-            !hasAimVoxel ||
-            target != aimVoxelTarget ||
-            !target.IsVoxelPresent(aimVoxelGx, aimVoxelGy);
+        bool cachedStillValid =
+            hasAimVoxel &&
+            target == aimVoxelTarget &&
+            target.IsVoxelPresent(aimVoxelGx, aimVoxelGy);
 
-        if (!needPick) return;
+        if (cachedStillValid) return;
 
         aimVoxelTarget = target;
-        hasAimVoxel = target.PickRandomPresentVoxel(out aimVoxelGx, out aimVoxelGy);
+        hasAimVoxel = target.PickRandomCoreVoxel(out aimVoxelGx, out aimVoxelGy);
     }
 
     protected override void Fire(Meteor target)
@@ -165,22 +166,14 @@ public class RailgunTurret : TurretBase
         // or under-lead. Do not read statsInstance directly here.
         float projectileSpeed = ProjectileSpeed;
 
-        // Aim at the same live voxel the Update step was rotating toward.
-        // Falls back to meteor center only if no live voxels exist or the
-        // cached voxel just died (rare race — the Update step picks one
-        // right before calling Fire, so we expect hasAimVoxel to be true
-        // almost always). Shooting at the meteor center is the original
-        // tunnel-through bug path — only take it when there's literally no
-        // other choice.
-        Vector2 aimWorld;
-        if (hasAimVoxel && target.IsVoxelPresent(aimVoxelGx, aimVoxelGy))
-        {
-            aimWorld = (Vector2)target.GetVoxelWorldPosition(aimVoxelGx, aimVoxelGy);
-        }
-        else
-        {
-            aimWorld = (Vector2)target.transform.position;
-        }
+        // Aim at the same live core voxel the Update step was rotating
+        // toward. Update already guaranteed hasAimVoxel is true before
+        // reaching fire (early-returns otherwise) so the cached coords are
+        // valid. No meteor-center fallback — that was the original tunnel-
+        // through bug path, and with core-only targeting there's never a
+        // "no aim voxel" case that would need it.
+        if (!hasAimVoxel || !target.IsVoxelPresent(aimVoxelGx, aimVoxelGy)) return;
+        Vector2 aimWorld = (Vector2)target.GetVoxelWorldPosition(aimVoxelGx, aimVoxelGy);
 
         // Recompute the lead point at fire time — the barrel may have just
         // finished rotating this frame, and the target may have moved since

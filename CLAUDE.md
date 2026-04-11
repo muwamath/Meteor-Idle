@@ -252,7 +252,7 @@ Added at slot 8 via `manage_editor add_layer`. Assigned to the `Meteor.prefab` r
 
 ## Spawning
 
-`MeteorSpawner` has a calm ramp: `initialInterval=4s`, `minInterval=1.5s`, `rampDurationSeconds=180s`. Don't casually regress these to faster — the user explicitly tuned them down.
+`MeteorSpawner` has a calm ramp: `initialInterval=12s`, `minInterval=4.5s`, `rampDurationSeconds=180s`. Don't casually regress these to faster — the user explicitly tuned them down (Iter 1 cut spawn rate to 33% of pre-cores values once dirt stopped paying out — fewer asteroids, but each one matters).
 
 ## Debug overlay (editor-only)
 
