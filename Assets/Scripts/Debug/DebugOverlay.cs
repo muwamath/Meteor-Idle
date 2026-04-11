@@ -3,6 +3,7 @@ using UnityEngine;
 #if UNITY_EDITOR
 using TMPro;
 using UnityEngine.InputSystem;
+using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 
 public class DebugOverlay : MonoBehaviour
@@ -10,6 +11,7 @@ public class DebugOverlay : MonoBehaviour
     [SerializeField] private GameObject panelRoot;
     [SerializeField] private TMP_InputField moneyInput;
     [SerializeField] private Button applyButton;
+    [SerializeField] private Button resetButton;
 
     private bool isOpen;
 
@@ -18,6 +20,14 @@ public class DebugOverlay : MonoBehaviour
         if (panelRoot != null) panelRoot.SetActive(false);
         if (applyButton != null) applyButton.onClick.AddListener(ApplyMoney);
         if (moneyInput != null) moneyInput.onSubmit.AddListener(_ => ApplyMoney());
+        if (resetButton != null) resetButton.onClick.AddListener(ResetGame);
+    }
+
+    private void ResetGame()
+    {
+        Time.timeScale = 1f;
+        var scene = SceneManager.GetActiveScene();
+        SceneManager.LoadScene(scene.name);
     }
 
     private void Update()

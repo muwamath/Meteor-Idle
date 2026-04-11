@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
+using UnityEngine.InputSystem;
 
 public class BuildSlotPanel : MonoBehaviour
 {
@@ -61,6 +62,18 @@ public class BuildSlotPanel : MonoBehaviour
         targetSlot = null;
         onConfirm = null;
         SetVisible(false);
+    }
+
+    public bool IsOpen => canvasGroup != null && canvasGroup.alpha > 0.5f;
+
+    private void Update()
+    {
+        if (!IsOpen) return;
+        var kb = Keyboard.current;
+        if (kb != null && kb.escapeKey.wasPressedThisFrame)
+        {
+            Close();
+        }
     }
 
     private void OnWeaponClicked(WeaponType weapon)
