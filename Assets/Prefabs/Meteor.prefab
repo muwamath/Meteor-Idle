@@ -144,5 +144,5 @@ MonoBehaviour:
   fallSpeedMin: 1.2
   fallSpeedMax: 2
   driftMax: 0.4
-  groundY: -7
+  groundY: -8.7
   voxelChunkPrefab: {fileID: 4872757474425155906, guid: 2f8ec547c3e534e389bc9a752d9377fe, type: 3}

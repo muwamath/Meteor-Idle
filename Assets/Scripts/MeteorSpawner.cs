@@ -44,7 +44,7 @@ public class MeteorSpawner : MonoBehaviour
         var meteor = pool.Get();
         float x = Random.Range(-spawnXRange, spawnXRange);
         int seed = Random.Range(0, int.MaxValue);
-        float size = Random.Range(0.7f, 1.6f);
+        float size = Random.Range(0.525f, 1.2f);
         meteor.Spawn(this, new Vector3(x, spawnY, 0f), seed, size);
     }
 
