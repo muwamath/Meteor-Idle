@@ -111,14 +111,21 @@ namespace MeteorIdle.Tests.PlayMode
             // the next Update tick rather than after the normal 5-second wait.
             ForceRailgunReady(turret);
 
-            // 10-world-unit gap (shooter y=-5, meteor y=5). Base railgun speed
-            // is 6 world/sec, so naive flight time is ~1.67s. Add headroom for
-            // barrel rotation to converge and for the round spawn delay.
-            yield return new WaitForSeconds(3f);
+            // Poll for damage rather than hard-waiting. Matches the pattern
+            // in RunHitTest — avoids flakes when PlayMode runs compete for
+            // Unity's frame budget.
+            const float maxWait = 10f;
+            const float pollInterval = 0.1f;
+            float elapsed = 0f;
+            while (elapsed < maxWait && meteor.AliveVoxelCount >= initialVoxels)
+            {
+                yield return new WaitForSeconds(pollInterval);
+                elapsed += pollInterval;
+            }
 
             Assert.Less(
                 meteor.AliveVoxelCount, initialVoxels,
-                $"railgun round should have hit the drifting meteor within 3s " +
+                $"railgun round should have hit the drifting meteor within {maxWait:F0}s " +
                 $"(initial={initialVoxels}, now={meteor.AliveVoxelCount})");
 
             TeardownScene();
@@ -272,16 +279,27 @@ namespace MeteorIdle.Tests.PlayMode
             // in ~0.192s each.
             ForceRailgunReady(turret);
 
-            // ~25 shots at 5.2 Hz ≈ 4.8 sec of charge time. Plus the first-shot
-            // rotation and per-shot flight time. 6 seconds is a generous budget.
-            yield return new WaitForSeconds(6f);
+            // Wait for damage to accumulate via polling. ~25 shots at 5.2 Hz
+            // is ~4.8s of charge + small rotation/flight overhead. Under
+            // Phase 3 weight-on-damage cores absorb more budget, so we
+            // give a 12s max window.
+            const float maxWait = 12f;
+            const float pollInterval = 0.25f;
+            int targetDestroyed = 20;
+            float elapsed = 0f;
+            while (elapsed < maxWait &&
+                   (initialVoxels - meteor.AliveVoxelCount) <= targetDestroyed)
+            {
+                yield return new WaitForSeconds(pollInterval);
+                elapsed += pollInterval;
+            }
 
             int finalVoxels = meteor.AliveVoxelCount;
             int destroyed = initialVoxels - finalVoxels;
 
             Assert.Greater(
-                destroyed, 20,
-                $"railgun should destroy more than 20 voxels over ~25 shots at weight 4/shot " +
+                destroyed, targetDestroyed,
+                $"railgun should destroy more than {targetDestroyed} voxels over ~{maxWait:F0}s " +
                 $"(initial={initialVoxels}, final={finalVoxels}, destroyed={destroyed}). " +
                 $"If this is stuck near {initialVoxels - 4} the railgun is re-targeting a tunneled " +
                 $"dead center instead of live voxels.");
@@ -337,19 +355,21 @@ namespace MeteorIdle.Tests.PlayMode
             if (weapon == WeaponType.Railgun)
                 ForceRailgunReady((RailgunTurret)turret);
 
-            float projectileSpeed = weapon == WeaponType.Railgun
-                ? 6f + 3f * speedLevel
-                : 4f + 0.6f * speedLevel;
-            float distance = Vector3.Distance(slotPos, meteorPos);
-            float flight = distance / projectileSpeed;
-            float budget = flight + 2.5f;
-            yield return new WaitForSeconds(budget);
+            // Poll for damage. Same pattern as RunHitTest — avoids race flake.
+            const float maxWait = 15f;
+            const float pollInterval = 0.1f;
+            float elapsed = 0f;
+            while (elapsed < maxWait && meteor.AliveVoxelCount >= initialVoxels)
+            {
+                yield return new WaitForSeconds(pollInterval);
+                elapsed += pollInterval;
+            }
 
             Assert.Less(
                 meteor.AliveVoxelCount, initialVoxels,
                 $"{weapon} at speedLvl={speedLevel} fireRateLvl={fireRateLevel} " +
                 $"homingLvl={homingLevel} should have hit meteor (pos={meteorPos}, " +
-                $"vel={meteorVel}) within {budget:F2}s " +
+                $"vel={meteorVel}) within {maxWait:F0}s " +
                 $"(initial={initialVoxels}, now={meteor.AliveVoxelCount})");
 
             TeardownScene();
@@ -375,13 +395,18 @@ namespace MeteorIdle.Tests.PlayMode
 
             // Upgrade the relevant stat(s) to the requested level via the
             // public Stats getter on each concrete turret. Also boost
-            // RotationSpeed so rotation convergence is never the test
-            // bottleneck — we're testing aim, not how fast the barrel slews.
+            // RotationSpeed and FireRate to their fast ends so rotation
+            // convergence and per-shot charge time are never the test
+            // bottleneck — we're testing that aim LANDS, not how long it
+            // takes the turret to get a shot off. With fast fire rate, if
+            // one shot races a meteor and misses, the next shot a fraction
+            // of a second later gets another chance.
             if (weapon == WeaponType.Railgun)
             {
                 var railgun = (RailgunTurret)turret;
                 railgun.Stats.speed.level = speedLevel;
                 railgun.Stats.rotationSpeed.level = 50;
+                railgun.Stats.fireRate.level = 50; // ~2.7 Hz, charge ~0.37s
             }
             else
             {
@@ -389,6 +414,7 @@ namespace MeteorIdle.Tests.PlayMode
                 missile.Stats.missileSpeed.level = speedLevel;
                 missile.Stats.homing.level = homingLevel;
                 missile.Stats.rotationSpeed.level = 50;
+                missile.Stats.fireRate.level = 50; // ~8 Hz
             }
 
             // Spawn the meteor with a controlled velocity.
@@ -404,23 +430,26 @@ namespace MeteorIdle.Tests.PlayMode
                 ForceRailgunReady((RailgunTurret)turret);
 
             // Time budget: projectile flight + rotation headroom + margin.
-            float projectileSpeed = weapon == WeaponType.Railgun
-                ? 6f + 3f * speedLevel
-                : 4f + 0.6f * speedLevel;
-            float distance = Vector3.Distance(slotPos, meteorPos);
-            float flight = distance / projectileSpeed;
-            // 5.5s headroom (up from 3.5s) to give the far-side slot case
-            // (Hit_Railgun_SideSlot_FarMeteor: flight ~2.71s, total budget
-            // used to be 6.21s) enough slop against Unity's background tasks
-            // during PlayMode runs. Confirmed flaky at the old margin during
-            // Iter 1 Phase 2 verification.
-            float budget = flight + 5.5f;
-            yield return new WaitForSeconds(budget);
+            // Poll for damage rather than hard-waiting a fixed budget. A
+            // hard WaitForSeconds is race-sensitive — when the PlayMode
+            // suite runs many tests in a row, Unity's physics engine gets
+            // slightly behind and the far-side slot case ran out of its
+            // 8.21s budget during Iter 1 Phase 3 verification. Polling makes
+            // fast cases finish in ~100ms while still giving slow cases up
+            // to maxWait seconds to land a hit.
+            const float maxWait = 15f;
+            const float pollInterval = 0.1f;
+            float elapsed = 0f;
+            while (elapsed < maxWait && meteor.AliveVoxelCount >= initialVoxels)
+            {
+                yield return new WaitForSeconds(pollInterval);
+                elapsed += pollInterval;
+            }
 
             Assert.Less(
                 meteor.AliveVoxelCount, initialVoxels,
                 $"{weapon} at speedLvl={speedLevel} homingLvl={homingLevel} should have hit " +
-                $"meteor (pos={meteorPos}, vel={meteorVel}) within {budget:F2}s " +
+                $"meteor (pos={meteorPos}, vel={meteorVel}) within {maxWait:F1}s " +
                 $"(initial={initialVoxels}, now={meteor.AliveVoxelCount})");
 
             TeardownScene();

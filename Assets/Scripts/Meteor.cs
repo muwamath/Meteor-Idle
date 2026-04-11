@@ -204,17 +204,21 @@ public class Meteor : MonoBehaviour
     // Line-walking voxel destruction for the railgun. Walks the grid along
     // worldDirection from entryWorld, destroying live voxels within a
     // perpendicular band of width caliberWidth (1 = 1 cell, 2 = 3 cells,
-    // 3 = 5 cells). Each live cell destroyed consumes 1 from the budget.
-    // Empty cells are free — the round glides past without losing budget.
-    public int ApplyTunnel(
+    // 3 = 5 cells). Budget is consumed per POINT OF DAMAGE DEALT (each hp
+    // decrement), not per voxel cleared — so a core with HP 5 costs 5
+    // budget to kill entirely, while a dirt voxel (HP 1) costs 1. Empty
+    // cells are free and don't consume budget, preserving the "glide
+    // through prior tunnel" feel.
+    public DestroyResult ApplyTunnel(
         Vector3 entryWorld,
         Vector3 worldDirection,
         int budget,
         int caliberWidth,
         out Vector3 exitWorld)
     {
+        var result = new DestroyResult();
         exitWorld = entryWorld;
-        if (dead || aliveCount == 0 || budget <= 0) return 0;
+        if (dead || aliveCount == 0 || budget <= 0) return result;
 
         Vector3 local = transform.InverseTransformPoint(entryWorld);
         Vector3 localDir = transform.InverseTransformDirection(worldDirection).normalized;
@@ -230,7 +234,6 @@ public class Meteor : MonoBehaviour
         float perpY = dx;
         int halfBand = Mathf.Max(0, caliberWidth - 1);
 
-        int consumed = 0;
         bool anyPainted = false;
         int maxSteps = VoxelMeteorGenerator.GridSize * 4;
         bool hasEnteredGrid = false;
@@ -254,13 +257,26 @@ public class Meteor : MonoBehaviour
                 if (iy < 0 || iy >= VoxelMeteorGenerator.GridSize) continue;
                 if (kind[ix, iy] == VoxelKind.Empty) continue; // empty — free
 
-                // Phase 1 instant-clear; Phase 2 will decrement hp first.
+                // 1 HP of damage = 1 unit of budget. Multi-HP cores cost
+                // their full HP to kill.
+                hp[ix, iy]--;
+                budget--;
+                result.damageDealt++;
+
+                if (hp[ix, iy] > 0)
+                {
+                    if (budget <= 0) break;
+                    continue;
+                }
+
+                bool wasCore = kind[ix, iy] == VoxelKind.Core;
                 kind[ix, iy] = VoxelKind.Empty;
-                hp[ix, iy] = 0;
                 VoxelMeteorGenerator.ClearVoxel(texture, ix, iy);
                 anyPainted = true;
-                consumed++;
-                budget--;
+                aliveCount--;
+
+                if (wasCore) result.coreDestroyed++;
+                else         result.dirtDestroyed++;
 
                 if (voxelChunkPrefab != null)
                 {
@@ -285,7 +301,6 @@ public class Meteor : MonoBehaviour
 
         if (anyPainted) texture.Apply();
 
-        aliveCount -= consumed;
         if (aliveCount <= 0)
         {
             dead = true;
@@ -298,7 +313,7 @@ public class Meteor : MonoBehaviour
             0f);
         exitWorld = transform.TransformPoint(localExit);
 
-        return consumed;
+        return result;
     }
 
     private void SnapToNearestAliveCell(ref float gx, ref float gy)

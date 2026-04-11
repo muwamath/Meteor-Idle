@@ -75,17 +75,24 @@ public class RailgunRound : MonoBehaviour
             if (meteor == null || !meteor.IsAlive) continue;
             if (alreadyTunneled.Contains(meteor)) continue;
 
-            int consumed = meteor.ApplyTunnel(
+            var result = meteor.ApplyTunnel(
                 entryWorld: hit.point,
                 worldDirection: direction,
                 budget: remainingWeight,
                 caliberWidth: caliber,
                 out _);
-            remainingWeight -= consumed;
+            // Budget consumed = damage dealt (every HP point costs 1 budget).
+            // Using result.damageDealt instead of TotalDestroyed is critical:
+            // a multi-HP core can absorb several points of damage without
+            // dying, and those still cost the round its budget.
+            int damageDealt = result.damageDealt;
+            remainingWeight -= damageDealt;
             alreadyTunneled.Add(meteor);
 
-            if (consumed > 0 && GameManager.Instance != null)
-                GameManager.Instance.AddMoney(consumed);
+            // Phase 3 still pays on total destroyed — Phase 6 will flip to
+            // core-only payouts.
+            if (result.TotalDestroyed > 0 && GameManager.Instance != null)
+                GameManager.Instance.AddMoney(result.TotalDestroyed);
         }
 
         transform.position += direction * stepDistance;
