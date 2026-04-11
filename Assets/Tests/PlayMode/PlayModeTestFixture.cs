@@ -71,6 +71,14 @@ namespace MeteorIdle.Tests.PlayMode
                 typeof(SpriteRenderer),
                 typeof(CircleCollider2D),
                 typeof(Meteor));
+            // Assign the Meteors physics layer so RailgunRound's per-frame
+            // raycasts (which filter against this layer only) can find the
+            // test meteor. Missile collisions still work because Unity's
+            // default Physics2D collision matrix allows all-vs-all unless
+            // explicitly disabled.
+            int meteorsLayer = LayerMask.NameToLayer("Meteors");
+            if (meteorsLayer >= 0) go.layer = meteorsLayer;
+
             var meteor = go.GetComponent<Meteor>();
             meteor.Spawn(null, position, seed, scale);
             return meteor;
@@ -86,6 +94,25 @@ namespace MeteorIdle.Tests.PlayMode
             return missile;
 #else
             throw new System.NotSupportedException("TestMissile spawn is editor-only");
+#endif
+        }
+
+        protected RailgunRound SpawnTestRailgunRound(
+            Vector3 spawnPos,
+            Vector2 direction,
+            float speed,
+            int weight,
+            int caliber)
+        {
+#if UNITY_EDITOR
+            var prefab = UnityEditor.AssetDatabase.LoadAssetAtPath<RailgunRound>(
+                "Assets/Prefabs/RailgunRound.prefab");
+            var round = Object.Instantiate(prefab);
+            round.name = "TestRailgunRound";
+            round.Configure(spawnPos, direction, speed, weight, caliber);
+            return round;
+#else
+            throw new System.NotSupportedException("TestRailgunRound spawn is editor-only");
 #endif
         }
     }
