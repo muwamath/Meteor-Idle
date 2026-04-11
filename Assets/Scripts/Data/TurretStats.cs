@@ -79,4 +79,18 @@ public class TurretStats : ScriptableObject
         foreach (var s in All()) s.level = 0;
         OnChanged?.Invoke();
     }
+
+    // Sum of every upgrade already purchased on this instance. Mirrors the
+    // NextCost formula so a sell refund equals the exact money the player
+    // paid into this turret's levels.
+    public int TotalSpentOnUpgrades()
+    {
+        int total = 0;
+        foreach (var s in All())
+        {
+            for (int lv = 0; lv < s.level; lv++)
+                total += Mathf.RoundToInt(s.baseCost * Mathf.Pow(s.costGrowth, lv));
+        }
+        return total;
+    }
 }

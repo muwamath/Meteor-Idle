@@ -22,6 +22,38 @@ namespace MeteorIdle.Tests.Editor
         }
 
         [Test]
+        public void TotalSpentOnUpgrades_ZeroAtLevelZero()
+        {
+            Assert.AreEqual(0, _stats.TotalSpentOnUpgrades());
+        }
+
+        [Test]
+        public void TotalSpentOnUpgrades_MatchesSumOfNextCostAcrossLevels()
+        {
+            int expected = 0;
+            // Upgrade FireRate 3 times, record the NextCost at each level.
+            for (int i = 0; i < 3; i++) { expected += _stats.fireRate.NextCost; _stats.ApplyUpgrade(StatId.FireRate); }
+            // Upgrade Damage twice.
+            for (int i = 0; i < 2; i++) { expected += _stats.damage.NextCost; _stats.ApplyUpgrade(StatId.Damage); }
+
+            Assert.AreEqual(expected, _stats.TotalSpentOnUpgrades());
+        }
+
+        [Test]
+        public void Instantiate_GivesIndependentLevelState()
+        {
+            var a = Object.Instantiate(_stats);
+            var b = Object.Instantiate(_stats);
+            a.ApplyUpgrade(StatId.FireRate);
+            a.ApplyUpgrade(StatId.FireRate);
+            Assert.AreEqual(2, a.fireRate.level);
+            Assert.AreEqual(0, b.fireRate.level);
+            Assert.AreEqual(0, _stats.fireRate.level);
+            Object.DestroyImmediate(a);
+            Object.DestroyImmediate(b);
+        }
+
+        [Test]
         public void Stat_CurrentValue_BaseAtLevelZero()
         {
             Assert.AreEqual(_stats.fireRate.baseValue, _stats.fireRate.CurrentValue, 1e-5);

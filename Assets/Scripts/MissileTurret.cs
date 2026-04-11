@@ -1,23 +1,42 @@
 using UnityEngine;
+using UnityEngine.Serialization;
 
 public class MissileTurret : TurretBase
 {
-    [SerializeField] private TurretStats stats;
+    [FormerlySerializedAs("stats")]
+    [SerializeField] private TurretStats statsTemplate;
     [SerializeField] private Missile missilePrefab;
     [SerializeField] private Transform missilePoolParent;
 
     private SimplePool<Missile> missilePool;
+    private TurretStats statsInstance;
 
-    public TurretStats Stats => stats;
+    public TurretStats Stats => statsInstance;
 
-    protected override float FireRate => stats.fireRate.CurrentValue;
-    protected override float RotationSpeed => stats.rotationSpeed.CurrentValue;
+    protected override float FireRate => statsInstance != null ? statsInstance.fireRate.CurrentValue : 0.5f;
+    protected override float RotationSpeed => statsInstance != null ? statsInstance.rotationSpeed.CurrentValue : 30f;
 
     protected override void Awake()
     {
         base.Awake();
         if (missilePoolParent == null) missilePoolParent = transform;
         missilePool = new SimplePool<Missile>(missilePrefab, missilePoolParent, 8);
+        if (statsInstance == null && statsTemplate != null)
+            statsInstance = Instantiate(statsTemplate);
+    }
+
+    public override void InitializeForBuild()
+    {
+        // Fresh per-slot clone on every (re)build so a sold-and-rebuilt slot
+        // starts from level 0 instead of inheriting old upgrade state. Destroy
+        // any previous clone first so sell+rebuild cycles don't leak SOs.
+        if (statsInstance != null) Destroy(statsInstance);
+        if (statsTemplate != null) statsInstance = Instantiate(statsTemplate);
+    }
+
+    private void OnDestroy()
+    {
+        if (statsInstance != null) Destroy(statsInstance);
     }
 
     protected override void Fire(Meteor target)
@@ -25,7 +44,6 @@ public class MissileTurret : TurretBase
         var missile = missilePool.Get();
         Vector3 spawnPos = muzzle != null ? muzzle.position : barrel.position;
 
-        // Pick a specific voxel on the target meteor to aim at.
         int gx = 0, gy = 0;
         bool hasVoxel = target.PickRandomPresentVoxel(out gx, out gy);
 
@@ -41,21 +59,18 @@ public class MissileTurret : TurretBase
             dir = barrel.up;
         }
 
-        float speed = stats.missileSpeed.CurrentValue;
-        // Only pass the target meteor for homing if we successfully picked a voxel to aim at.
-        // When hasVoxel is false (meteor has no live cells between FindTarget and Fire),
-        // the missile flies as a dumb projectile toward barrel.up.
+        float speed = statsInstance.missileSpeed.CurrentValue;
         Meteor homingTarget = hasVoxel ? target : null;
         missile.Launch(
             this,
             spawnPos,
             dir * speed,
-            stats.damage.CurrentValue,
-            stats.blastRadius.CurrentValue,
+            statsInstance.damage.CurrentValue,
+            statsInstance.blastRadius.CurrentValue,
             homingTarget,
             gx,
             gy,
-            stats.homing.CurrentValue);
+            statsInstance.homing.CurrentValue);
 
         if (muzzleFlash != null) muzzleFlash.Play();
     }

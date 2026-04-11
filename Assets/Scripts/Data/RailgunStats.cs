@@ -75,4 +75,15 @@ public class RailgunStats : ScriptableObject
         foreach (var s in All()) s.level = 0;
         OnChanged?.Invoke();
     }
+
+    public int TotalSpentOnUpgrades()
+    {
+        int total = 0;
+        foreach (var s in All())
+        {
+            for (int lv = 0; lv < s.level; lv++)
+                total += Mathf.RoundToInt(s.baseCost * Mathf.Pow(s.costGrowth, lv));
+        }
+        return total;
+    }
 }

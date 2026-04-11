@@ -1,4 +1,5 @@
 using UnityEngine;
+using UnityEngine.Serialization;
 
 // TurretBase subclass for the railgun weapon. Reads a RailgunStats asset,
 // fires RailgunRound projectiles in a straight line from the muzzle, and
@@ -7,7 +8,8 @@ using UnityEngine;
 // reloadTimer — railgun shows a visible "filling up" between shots.
 public class RailgunTurret : TurretBase
 {
-    [SerializeField] private RailgunStats stats;
+    [FormerlySerializedAs("stats")]
+    [SerializeField] private RailgunStats statsTemplate;
     [SerializeField] private RailgunRound roundPrefab;
     [SerializeField] private SpriteRenderer barrelSprite;
 
@@ -26,25 +28,36 @@ public class RailgunTurret : TurretBase
     };
 
     private float chargeTimer;
+    private RailgunStats statsInstance;
 
-    public RailgunStats Stats => stats;
+    public RailgunStats Stats => statsInstance;
 
-    protected override float FireRate => stats != null ? stats.fireRate.CurrentValue : 0.2f;
-    protected override float RotationSpeed => stats != null ? stats.rotationSpeed.CurrentValue : 20f;
+    protected override float FireRate => statsInstance != null ? statsInstance.fireRate.CurrentValue : 0.2f;
+    protected override float RotationSpeed => statsInstance != null ? statsInstance.rotationSpeed.CurrentValue : 20f;
 
     protected override void Awake()
     {
         base.Awake();
-        // Start the barrel at dead white. Charge will fill in over time.
         if (barrelSprite != null) barrelSprite.color = ChargeStops[0];
+        if (statsInstance == null && statsTemplate != null)
+            statsInstance = Instantiate(statsTemplate);
+    }
+
+    public override void InitializeForBuild()
+    {
+        if (statsInstance != null) Destroy(statsInstance);
+        if (statsTemplate != null) statsInstance = Instantiate(statsTemplate);
+        chargeTimer = 0f;
+        if (barrelSprite != null) barrelSprite.color = ChargeStops[0];
+    }
+
+    private void OnDestroy()
+    {
+        if (statsInstance != null) Destroy(statsInstance);
     }
 
     protected override void Update()
     {
-        // Custom Update — replaces the base class's reloadTimer-driven loop.
-        // Charge timer advances each frame, capped at chargeDuration. Barrel
-        // color is set from the quantized stops based on charge progress.
-        // Fire only when charge is full AND a target is aligned.
         float chargeDuration = 1f / Mathf.Max(0.05f, FireRate);
         chargeTimer = Mathf.Min(chargeTimer + Time.deltaTime, chargeDuration);
 
@@ -52,25 +65,20 @@ public class RailgunTurret : TurretBase
         int stopIdx = Mathf.Min(Mathf.FloorToInt(t * ChargeStops.Length), ChargeStops.Length - 1);
         if (barrelSprite != null) barrelSprite.color = ChargeStops[stopIdx];
 
-        // Find a target. Reuse the base-class FindTarget directly.
         var target = FindTarget();
         if (target == null) return;
 
-        // Rotate barrel toward the target — same logic as TurretBase.Update,
-        // but inlined here because we override the whole Update method.
         Vector2 toTarget = (Vector2)(target.transform.position - barrel.position);
         float desiredAngle = Mathf.Atan2(toTarget.y, toTarget.x) * Mathf.Rad2Deg - 90f;
         float currentAngle = barrel.eulerAngles.z;
         float newAngle = Mathf.MoveTowardsAngle(currentAngle, desiredAngle, RotationSpeed * Time.deltaTime);
         barrel.rotation = Quaternion.Euler(0f, 0f, newAngle);
 
-        // Fire only when charge is full AND barrel is aligned within tolerance.
         float alignmentErr = Mathf.Abs(Mathf.DeltaAngle(newAngle, desiredAngle));
         if (chargeTimer >= chargeDuration && alignmentErr <= aimAlignmentDeg)
         {
             Fire(target);
             chargeTimer = 0f;
-            // Snap color back to dead white instantly — no fade.
             if (barrelSprite != null) barrelSprite.color = ChargeStops[0];
         }
     }
@@ -82,7 +90,7 @@ public class RailgunTurret : TurretBase
             Debug.LogError("[RailgunTurret] roundPrefab not assigned", this);
             return;
         }
-        if (stats == null)
+        if (statsInstance == null)
         {
             Debug.LogError("[RailgunTurret] stats not assigned", this);
             return;
@@ -95,9 +103,9 @@ public class RailgunTurret : TurretBase
         round.Configure(
             spawnPos: spawnPos,
             dir: dir,
-            speed: stats.speed.CurrentValue,
-            weight: Mathf.RoundToInt(stats.weight.CurrentValue),
-            caliber: Mathf.RoundToInt(stats.caliber.CurrentValue));
+            speed: statsInstance.speed.CurrentValue,
+            weight: Mathf.RoundToInt(statsInstance.weight.CurrentValue),
+            caliber: Mathf.RoundToInt(statsInstance.caliber.CurrentValue));
 
         if (muzzleFlash != null) muzzleFlash.Play();
     }

@@ -22,6 +22,39 @@ namespace MeteorIdle.Tests.Editor
         }
 
         [Test]
+        public void TotalSpentOnUpgrades_ZeroAtLevelZero()
+        {
+            Assert.AreEqual(0, _stats.TotalSpentOnUpgrades());
+        }
+
+        [Test]
+        public void TotalSpentOnUpgrades_MatchesSumOfNextCostAcrossLevels()
+        {
+            int expected = 0;
+            for (int i = 0; i < 3; i++) { expected += _stats.fireRate.NextCost; _stats.ApplyUpgrade(RailgunStatId.FireRate); }
+            for (int i = 0; i < 2; i++) { expected += _stats.weight.NextCost; _stats.ApplyUpgrade(RailgunStatId.Weight); }
+            // Caliber is capped at maxLevel=2. Upgrade to the cap to make sure
+            // capped stats still contribute their spent cost to the total.
+            for (int i = 0; i < 2; i++) { expected += _stats.caliber.NextCost; _stats.ApplyUpgrade(RailgunStatId.Caliber); }
+
+            Assert.AreEqual(expected, _stats.TotalSpentOnUpgrades());
+        }
+
+        [Test]
+        public void Instantiate_GivesIndependentLevelState()
+        {
+            var a = Object.Instantiate(_stats);
+            var b = Object.Instantiate(_stats);
+            a.ApplyUpgrade(RailgunStatId.FireRate);
+            a.ApplyUpgrade(RailgunStatId.FireRate);
+            Assert.AreEqual(2, a.fireRate.level);
+            Assert.AreEqual(0, b.fireRate.level);
+            Assert.AreEqual(0, _stats.fireRate.level);
+            Object.DestroyImmediate(a);
+            Object.DestroyImmediate(b);
+        }
+
+        [Test]
         public void Stat_CurrentValue_BaseAtLevelZero()
         {
             Assert.AreEqual(_stats.fireRate.baseValue, _stats.fireRate.CurrentValue, 1e-5);

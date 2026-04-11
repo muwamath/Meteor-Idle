@@ -15,44 +15,76 @@ public class BaseSlot : MonoBehaviour, IPointerClickHandler
     [SerializeField] private GameObject missileWeapon;
     [SerializeField] private GameObject railgunWeapon;
 
-    // Two upgrade panels — clicking a built turret routes to the panel that
-    // matches its weapon type. Phase 9 wires upgradePanelRailgun in the scene;
-    // until then it's null and clicking a railgun does nothing.
+    // The typed turret components live on the two weapon children. Cached in
+    // Awake so BaseSlot can route "clicked this slot" to the matching panel
+    // and hand the panel that slot's per-instance stats clone.
+    private MissileTurret missileTurret;
+    private RailgunTurret railgunTurret;
+
+    // Contextual upgrade panels — clicking a built turret opens the panel
+    // that matches its weapon and binds it to this slot's stats instance.
     [FormerlySerializedAs("upgradePanel")]
-    [SerializeField] private CanvasGroup upgradePanelMissile;
-    [SerializeField] private CanvasGroup upgradePanelRailgun;
+    [SerializeField] private MissileUpgradePanel upgradePanelMissile;
+    [SerializeField] private RailgunUpgradePanel upgradePanelRailgun;
 
     public bool IsBuilt { get; private set; }
     public WeaponType BuiltWeapon { get; private set; }
+    public int BuildCostPaid { get; private set; }
     public event Action<BaseSlot> EmptyClicked;
 
-    public void SetMissileUpgradePanel(CanvasGroup panel) => upgradePanelMissile = panel;
-    public void SetRailgunUpgradePanel(CanvasGroup panel) => upgradePanelRailgun = panel;
+    // Returns the active turret component (MissileTurret or RailgunTurret)
+    // or null if the slot is empty. Panels read this to reach the per-slot
+    // stats clone when the player opens the upgrade overlay.
+    public TurretBase ActiveTurret
+    {
+        get
+        {
+            if (!IsBuilt) return null;
+            return BuiltWeapon == WeaponType.Railgun
+                ? (TurretBase)railgunTurret
+                : missileTurret;
+        }
+    }
+
+    public void SetMissileUpgradePanel(MissileUpgradePanel panel) => upgradePanelMissile = panel;
+    public void SetRailgunUpgradePanel(RailgunUpgradePanel panel) => upgradePanelRailgun = panel;
+
+    private void Awake()
+    {
+        // Cache turret components from both (possibly inactive) weapon children.
+        if (missileWeapon != null) missileTurret = missileWeapon.GetComponentInChildren<MissileTurret>(true);
+        if (railgunWeapon != null) railgunTurret = railgunWeapon.GetComponentInChildren<RailgunTurret>(true);
+    }
 
     public void SetEmpty()
     {
         IsBuilt = false;
+        BuildCostPaid = 0;
         if (turretBaseSr != null) turretBaseSr.enabled = false;
         if (missileWeapon != null) missileWeapon.SetActive(false);
         if (railgunWeapon != null) railgunWeapon.SetActive(false);
         if (plusIconSr != null) plusIconSr.enabled = true;
     }
 
-    public void Build(WeaponType weapon)
+    public void Build(WeaponType weapon, int costPaid)
     {
         IsBuilt = true;
         BuiltWeapon = weapon;
+        BuildCostPaid = costPaid;
         if (turretBaseSr != null) turretBaseSr.enabled = true;
         if (plusIconSr != null) plusIconSr.enabled = false;
 
-        // Activate the matching weapon child, deactivate the other.
+        // Initialize the chosen turret's per-slot stats clone BEFORE activating
+        // its GameObject so Update() sees a valid statsInstance on first tick.
         if (weapon == WeaponType.Railgun)
         {
+            if (railgunTurret != null) railgunTurret.InitializeForBuild();
             if (railgunWeapon != null) railgunWeapon.SetActive(true);
             if (missileWeapon != null) missileWeapon.SetActive(false);
         }
         else
         {
+            if (missileTurret != null) missileTurret.InitializeForBuild();
             if (missileWeapon != null) missileWeapon.SetActive(true);
             if (railgunWeapon != null) railgunWeapon.SetActive(false);
         }
@@ -66,15 +98,15 @@ public class BaseSlot : MonoBehaviour, IPointerClickHandler
 
     private void ToggleUpgradePanel()
     {
-        // Pick the panel that matches the built weapon. If null (e.g. railgun
-        // panel before Phase 9 wiring), do nothing.
-        var panel = BuiltWeapon == WeaponType.Railgun
-            ? upgradePanelRailgun
-            : upgradePanelMissile;
-        if (panel == null) return;
-        bool visible = panel.alpha < 0.5f;
-        panel.alpha = visible ? 1f : 0f;
-        panel.interactable = visible;
-        panel.blocksRaycasts = visible;
+        if (BuiltWeapon == WeaponType.Railgun)
+        {
+            if (upgradePanelRailgun == null) return;
+            upgradePanelRailgun.ToggleForSlot(this);
+        }
+        else
+        {
+            if (upgradePanelMissile == null) return;
+            upgradePanelMissile.ToggleForSlot(this);
+        }
     }
 }

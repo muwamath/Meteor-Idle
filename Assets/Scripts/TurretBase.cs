@@ -23,6 +23,11 @@ public abstract class TurretBase : MonoBehaviour
         meteorSpawner = spawner;
     }
 
+    // Called by BaseSlot.Build before the turret GameObject is activated, so
+    // each slot gets its own fresh runtime copy of its stats asset. Subclasses
+    // override to clone their typed stats template.
+    public virtual void InitializeForBuild() { }
+
     protected virtual void Awake()
     {
         if (meteorSpawner == null) meteorSpawner = FindAnyObjectByType<MeteorSpawner>();
