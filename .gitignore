@@ -52,6 +52,17 @@ mono_crash.*.json
 Assets/Screenshots/
 Assets/Screenshots.meta
 
+# === Test / verification screenshots (anywhere in the repo) ===
+# Catches screenshots taken by Unity's manage_camera, chrome-devtools-mcp's
+# take_screenshot, or any ad-hoc verification shots. Use /tmp for transient
+# captures, or commit purposefully under Assets/Art/ as procedural source.
+[Ss]creenshots/
+*-screenshot.png
+*-screenshot.jpg
+*-screenshot.webp
+verification-*.png
+smoke-*.png
+
 # === Local tooling (not the project) ===
 .claude/
 .remember/
