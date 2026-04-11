@@ -72,12 +72,18 @@ Tests/
     TurretStatsTests.cs         NextCost/CurrentValue formulas, ApplyUpgrade
     RailgunStatsTests.cs        same shape as TurretStatsTests but for RailgunStats
     SimplePoolTests.cs          prewarm/Get/Release/reuse cycle
+    SlotManagerBuildCostTests.cs  NextBuildCost in-table + overflow, both weapons
+    MeteorSpawnerIntervalTests.cs ramp lerp from initialInterval to minInterval
     TestHelpers.cs              reflection-invoked Awake/Update for EditMode tests
   PlayMode/
     MeteorIdle.Tests.PlayMode.asmdef
     PlayModeTestFixture.cs      shared spawn helpers for meteor/missile/railgun
     ExistingFeatureSmokeTests.cs  missile collision, meteor fade, spawner pooling
     RailgunPlayModeTests.cs     fires-into-meteor, pierces-two, layer-mask filter
+    TurretTargetingTests.cs     TurretBase.FindTarget via TestTurret subclass
+    MissileHomingTests.cs       RotateTowards steering, dumb case, target-lost
+    RailgunChargeAnimationTests.cs  4-stop quantized barrel color via chargeTimer
+    FloatingTextTests.cs        rise, alpha fade, auto-destruction
 tools/
   identity-scrub.py             pre-commit identity-leak check (see "Identity scrub" section)
 docs/superpowers/
@@ -265,8 +271,8 @@ On first use in a fresh clone, the script exits with code 2 and instructions. Po
 
 Two test assemblies in this project:
 
-- **`MeteorIdle.Tests.Editor`** (`Assets/Tests/EditMode/`) — runs without entering play mode. Fast (~2 seconds for the whole suite). Targets pure game logic that doesn't need physics, time, or scene loading. **59 tests today.**
-- **`MeteorIdle.Tests.PlayMode`** (`Assets/Tests/PlayMode/`) — runs inside a temporary play session. Slower (~13 seconds). Targets behavior that depends on real `Physics2D`, `Time.deltaTime`, or live `MonoBehaviour` lifecycles. **6 tests today.**
+- **`MeteorIdle.Tests.Editor`** (`Assets/Tests/EditMode/`) — runs without entering play mode. Fast (~2 seconds for the whole suite). Targets pure game logic that doesn't need physics, time, or scene loading. **67 tests today.**
+- **`MeteorIdle.Tests.PlayMode`** (`Assets/Tests/PlayMode/`) — runs inside a temporary play session. Slower (~16 seconds). Targets behavior that depends on real `Physics2D`, `Time.deltaTime`, or live `MonoBehaviour` lifecycles. **20 tests today.**
 
 Run via `mcp__UnityMCP__run_tests` with `mode: "EditMode"` or `"PlayMode"` (and `assembly_names` to target one). Both modes must be green before promoting a branch to `main`.
 
@@ -279,6 +285,8 @@ Run via `mcp__UnityMCP__run_tests` with `mode: "EditMode"` or `"PlayMode"` (and 
 - `GameManager.TrySpend` / `AddMoney` / `SetMoney` plus `OnMoneyChanged` event firing
 - `TurretStats` and `RailgunStats` — `NextCost` / `CurrentValue` formulas, `ApplyUpgrade` level tracking, single-stat isolation, `ResetRuntime`
 - `SimplePool<T>` — prewarm/Get/Release cycle and active-list bookkeeping
+- `SlotManager.NextBuildCost` — per-weapon cost escalation: in-table lookup, overflow multiplier, shared slot tier across weapons
+- `MeteorSpawner.CurrentInterval` — cadence ramp lerp from `initialInterval` to `minInterval`, including clamp past full ramp
 
 ### PlayMode coverage
 
@@ -290,10 +298,14 @@ Run via `mcp__UnityMCP__run_tests` with `mode: "EditMode"` or `"PlayMode"` (and 
   - `RailgunRound_FiresIntoMeteor_DealsDamage` — per-frame raycast → `ApplyTunnel` end-to-end
   - `RailgunRound_PiercesTwoStackedMeteors` — `Weight` budget carries across multiple meteors in a line
   - `RailgunRound_LayerMask_IgnoresMissilesInPath` — `Meteors` layer filter excludes missile colliders
+- **Turret targeting** (`TurretTargetingTests.cs`) — `TurretBase.FindTarget` via a `TestTurret` subclass: closest-live-meteor pick, out-of-range, empty spawner, dead-meteor filter. Meteors are injected into the spawner's `SimplePool.active` list via reflection.
+- **Missile homing** (`MissileHomingTests.cs`) — `Missile.Update` steering: `RotateTowards` rotates velocity toward the target voxel bounded by `homingDegPerSec`, dumb projectile (homing=0) holds its line, steering stops when the target voxel is destroyed mid-flight.
+- **Railgun charge animation** (`RailgunChargeAnimationTests.cs`) — instantiates `BaseSlot.prefab`, `Build(Railgun)`, and advances the private `chargeTimer` via reflection to hit each of the 4 quantized color stops. Also asserts `InitializeForBuild` resets to dead white.
+- **Floating text** (`FloatingTextTests.cs`) — linear rise, alpha fade to 0 across `lifetime`, auto-destruction at `t >= 1`, and that `Show` resets alpha to 1 synchronously.
 
 ### What is *not* tested
 
-- `MissileTurret` and `RailgunTurret` `Update` loops — need real time + scene state. Verify by play mode.
+- `MissileTurret` and `RailgunTurret` full `Update` reload→fire cycles — need real time + scene state. Verify by play mode.
 - `SlotManager.Start` slot spawning — needs scene refs. Verify by play mode.
 - All `UI/*` panel layouts — visual, can only be judged in-editor.
 - `DebugOverlay` — editor-only, no runtime logic worth asserting.

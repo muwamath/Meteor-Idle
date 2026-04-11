@@ -60,7 +60,7 @@ The two weapons feel mechanically different: missiles are spammy and area-of-eff
 - C# game code in the **`MeteorIdle`** assembly definition
 - New Input System
 - TextMeshPro for UI
-- **Unity Test Framework**: 59 EditMode tests + 6 PlayMode tests covering voxel destruction logic, the per-weapon stats, the per-frame raycast railgun chain, missile collision, meteor fade, and the spawner pool
+- **Unity Test Framework**: 67 EditMode tests + 20 PlayMode tests covering voxel destruction logic, the per-weapon stats, build-cost escalation, spawner cadence ramp, the per-frame raycast railgun chain, turret targeting, missile homing steering, the quantized railgun charge color animation, the floating-text rise/fade curve, missile collision, and meteor fade
 
 All art is procedurally generated at edit time by C# editor scripts — there are no bitmap files authored in external tools. The voxel meteors, both turret barrels, the missile, the railgun bullet, the railgun streak, the starfield, and the particle sprites are all PNGs written by Unity at build time from procedural code. Hard pixel edges, 1-pixel dark/light edges, no smooth gradients — strict voxel aesthetic throughout.
 
@@ -85,8 +85,8 @@ Assets/
     UI/                         MissileUpgradePanel, RailgunUpgradePanel, BuildSlotPanel, ...
     Debug/DebugOverlay.cs       editor-only money setter + reset
 Tests/
-  EditMode/                     59 logic tests (~2s runtime)
-  PlayMode/                     6 physics/integration tests (~13s runtime)
+  EditMode/                     67 logic tests (~2s runtime)
+  PlayMode/                     20 physics/integration tests (~16s runtime)
 tools/
   identity-scrub.py             pre-commit identity-leak check
 docs/superpowers/
