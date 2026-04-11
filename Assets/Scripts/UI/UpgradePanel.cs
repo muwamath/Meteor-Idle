@@ -8,18 +8,21 @@ public class UpgradePanel : MonoBehaviour
 {
     [SerializeField] private TurretStats stats;
     [SerializeField] private UpgradeButton buttonPrefab;
-    [SerializeField] private Transform buttonParent;
+    [SerializeField] private Transform launcherColumnParent;
+    [SerializeField] private Transform missileColumnParent;
 
     private readonly List<UpgradeButton> buttons = new List<UpgradeButton>();
     private Action<int> moneyListener;
 
     private void Start()
     {
-        if (stats == null || buttonPrefab == null || buttonParent == null) return;
+        if (stats == null || buttonPrefab == null ||
+            launcherColumnParent == null || missileColumnParent == null) return;
 
         foreach (var stat in stats.All())
         {
-            var btn = Instantiate(buttonPrefab, buttonParent);
+            Transform parent = IsLauncherStat(stat.id) ? launcherColumnParent : missileColumnParent;
+            var btn = Instantiate(buttonPrefab, parent);
             btn.Bind(stats, stat.id, OnClicked);
             buttons.Add(btn);
         }
@@ -36,6 +39,11 @@ public class UpgradePanel : MonoBehaviour
     {
         if (moneyListener != null && GameManager.Instance != null)
             GameManager.Instance.OnMoneyChanged -= moneyListener;
+    }
+
+    private static bool IsLauncherStat(StatId id)
+    {
+        return id == StatId.FireRate || id == StatId.RotationSpeed;
     }
 
     private void OnClicked(StatId id)
