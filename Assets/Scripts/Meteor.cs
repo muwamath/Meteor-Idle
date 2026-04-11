@@ -1,5 +1,18 @@
 using UnityEngine;
 
+// Returned by Meteor.ApplyBlast and Meteor.ApplyTunnel so callers can pay
+// money based on core destruction while still reporting total for visuals
+// and tracking weight-budget consumption on every HP point (not just cell
+// kills). A struct instead of a tuple so call sites read naturally at
+// every use and the field names survive refactors.
+public struct DestroyResult
+{
+    public int dirtDestroyed;
+    public int coreDestroyed;
+    public int damageDealt; // total HP points subtracted, regardless of cell kills
+    public int TotalDestroyed => dirtDestroyed + coreDestroyed;
+}
+
 [RequireComponent(typeof(SpriteRenderer), typeof(CircleCollider2D))]
 public class Meteor : MonoBehaviour
 {
@@ -106,9 +119,10 @@ public class Meteor : MonoBehaviour
             ReturnSilently();
     }
 
-    public int ApplyBlast(Vector3 worldImpactPoint, float worldRadius)
+    public DestroyResult ApplyBlast(Vector3 worldImpactPoint, float worldRadius)
     {
-        if (dead || aliveCount == 0) return 0;
+        var result = new DestroyResult();
+        if (dead || aliveCount == 0) return result;
 
         Vector3 local = transform.InverseTransformPoint(worldImpactPoint);
         const float halfExtent = 0.75f;
@@ -116,21 +130,17 @@ public class Meteor : MonoBehaviour
         float gx = (local.x + halfExtent) * localToGrid;
         float gy = (local.y + halfExtent) * localToGrid;
         // Clamp to the valid cell-center range so rim-edge impacts snap onto the
-        // nearest column/row instead of landing outside the grid. Legitimate
-        // pass-through-hole misses still return 0 because the cell check still
-        // requires kind[x,y] != Empty.
+        // nearest column/row instead of landing outside the grid.
         gx = Mathf.Clamp(gx, 0.5f, VoxelMeteorGenerator.GridSize - 0.5f);
         gy = Mathf.Clamp(gy, 0.5f, VoxelMeteorGenerator.GridSize - 0.5f);
 
         // The meteor's CircleCollider2D radius never shrinks as voxels are destroyed, so
         // a missile can trigger on an eroded rim that has no live voxels within the blast
-        // circle — landing a "hit in empty space". Walk the impact coordinates inward
-        // (toward the meteor center) until we find a live voxel, then blast there.
+        // circle. Walk the impact coordinates inward until we find a live voxel.
         WalkInwardToAliveCell(ref gx, ref gy);
 
         // Safety net: if the inward walk ended on a dead cell, fall back to the
-        // nearest alive voxel anywhere in the grid. aliveCount > 0 is guaranteed
-        // by the early return above.
+        // nearest alive voxel anywhere in the grid.
         int snapX = Mathf.Clamp(Mathf.FloorToInt(gx), 0, VoxelMeteorGenerator.GridSize - 1);
         int snapY = Mathf.Clamp(Mathf.FloorToInt(gy), 0, VoxelMeteorGenerator.GridSize - 1);
         if (kind[snapX, snapY] == VoxelKind.Empty) SnapToNearestAliveCell(ref gx, ref gy);
@@ -143,7 +153,6 @@ public class Meteor : MonoBehaviour
         int maxY = Mathf.Min(VoxelMeteorGenerator.GridSize - 1, Mathf.CeilToInt(gy + gridRadius));
 
         float r2 = gridRadius * gridRadius;
-        int destroyed = 0;
         bool anyPainted = false;
 
         for (int y = minY; y <= maxY; y++)
@@ -156,13 +165,21 @@ public class Meteor : MonoBehaviour
                 float d2 = (cx - gx) * (cx - gx) + (cy - gy) * (cy - gy);
                 if (d2 > r2) continue;
 
-                // Phase 1 keeps instant-clear semantics; Phase 2 will switch
-                // to hp[x,y]-- and only clear on hp <= 0.
+                // 1 HP of damage per blast coverage. Blast radius is the
+                // damage-scaling mechanism — wider blasts hit more cells,
+                // not harder. A core with HP > 1 survives a single blast.
+                hp[x, y]--;
+                result.damageDealt++;
+                if (hp[x, y] > 0) continue;
+
+                bool wasCore = kind[x, y] == VoxelKind.Core;
                 kind[x, y] = VoxelKind.Empty;
-                hp[x, y] = 0;
                 VoxelMeteorGenerator.ClearVoxel(texture, x, y);
                 anyPainted = true;
-                destroyed++;
+                aliveCount--;
+
+                if (wasCore) result.coreDestroyed++;
+                else         result.dirtDestroyed++;
 
                 if (voxelChunkPrefab != null)
                 {
@@ -176,13 +193,12 @@ public class Meteor : MonoBehaviour
 
         if (anyPainted) texture.Apply();
 
-        aliveCount -= destroyed;
         if (aliveCount <= 0)
         {
             dead = true;
             owner?.Release(this);
         }
-        return destroyed;
+        return result;
     }
 
     // Line-walking voxel destruction for the railgun. Walks the grid along

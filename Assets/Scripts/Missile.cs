@@ -93,17 +93,19 @@ public class Missile : MonoBehaviour
         if (meteor == null || !meteor.IsAlive) return;
 
         float totalRadius = impactRadius + blastRadius;
-        int destroyed = meteor.ApplyBlast(transform.position, totalRadius);
+        var result = meteor.ApplyBlast(transform.position, totalRadius);
 
-        if (destroyed > 0)
+        // Phase 2 still pays on total destroyed so gameplay balance is unchanged
+        // until Phase 6 flips to core-only payouts. Keeps every commit runnable.
+        if (result.TotalDestroyed > 0)
         {
             if (GameManager.Instance != null)
-                GameManager.Instance.AddMoney(destroyed);
+                GameManager.Instance.AddMoney(result.TotalDestroyed);
 
             if (floatingTextPrefab != null)
             {
                 var ft = Instantiate(floatingTextPrefab, transform.position, Quaternion.identity);
-                ft.Show($"+${destroyed}");
+                ft.Show($"+${result.TotalDestroyed}");
             }
         }
 

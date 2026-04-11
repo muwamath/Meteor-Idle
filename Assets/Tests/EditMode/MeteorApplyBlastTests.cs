@@ -1,3 +1,4 @@
+using System.Reflection;
 using NUnit.Framework;
 using UnityEngine;
 
@@ -34,7 +35,7 @@ namespace MeteorIdle.Tests.Editor
             var m = NewMeteor();
             int before = m.AliveVoxelCount;
 
-            int destroyed = m.ApplyBlast(Vector3.zero, 0.28f);
+            int destroyed = m.ApplyBlast(Vector3.zero, 0.28f).TotalDestroyed;
 
             Assert.Greater(destroyed, 0, "center-hit should always destroy voxels");
             Assert.AreEqual(before - destroyed, m.AliveVoxelCount);
@@ -61,7 +62,7 @@ namespace MeteorIdle.Tests.Editor
             }
             Assert.GreaterOrEqual(tx, 0);
 
-            int destroyed = m.ApplyBlast(cellWorld, 0.28f);
+            int destroyed = m.ApplyBlast(cellWorld, 0.28f).TotalDestroyed;
 
             Assert.Greater(destroyed, 0);
             Assert.IsFalse(m.IsVoxelPresent(tx, ty),
@@ -76,7 +77,7 @@ namespace MeteorIdle.Tests.Editor
 
             // Impact comes from below the meteor, well outside the voxel grid vertically.
             Vector3 bottomContact = new Vector3(0f, -1.2f, 0f);
-            int destroyed = m.ApplyBlast(bottomContact, 0.28f);
+            int destroyed = m.ApplyBlast(bottomContact, 0.28f).TotalDestroyed;
 
             Assert.Greater(destroyed, 0, "outside-bottom hit must crater something");
 
@@ -105,7 +106,7 @@ namespace MeteorIdle.Tests.Editor
             int hitsBeforeZero = 0;
             for (int i = 0; i < 10; i++)
             {
-                int d = m.ApplyBlast(bottomContact, 0.28f);
+                int d = m.ApplyBlast(bottomContact, 0.28f).TotalDestroyed;
                 if (d == 0) break;
                 hitsBeforeZero++;
                 totalDestroyed += d;
@@ -130,7 +131,7 @@ namespace MeteorIdle.Tests.Editor
             for (int i = 0; i < 15; i++) m.ApplyBlast(bottomContact, 0.28f);
 
             int beforeNext = m.AliveVoxelCount;
-            int destroyed = m.ApplyBlast(bottomContact, 0.28f);
+            int destroyed = m.ApplyBlast(bottomContact, 0.28f).TotalDestroyed;
 
             // The SnapToNearestAliveCell fallback kicks in and redirects the blast to the
             // closest surviving voxel anywhere in the grid. The user's rule: a missile
@@ -149,7 +150,7 @@ namespace MeteorIdle.Tests.Editor
             // we verify the clamp + walk behaves): the clamp snaps gy to the top row,
             // then walk-inward finds the nearest alive cell along the ray to center.
             Vector3 wayAbove = new Vector3(0f, 10f, 0f);
-            int destroyed = m.ApplyBlast(wayAbove, 0.28f);
+            int destroyed = m.ApplyBlast(wayAbove, 0.28f).TotalDestroyed;
             Assert.Greater(destroyed, 0,
                 "clamp should pull an out-of-bounds impact to the rim and crater it");
             Destroy(m);
@@ -158,13 +159,15 @@ namespace MeteorIdle.Tests.Editor
         [Test]
         public void DeadMeteor_ReturnsZero()
         {
-            var m = NewMeteor();
+            // Smallest-size meteor: coreHp = 1, so a single huge blast is
+            // guaranteed to kill every cell (dirt AND cores) in one pass.
+            var m = NewMeteor(scale: 0.525f);
             // Nuke everything by blasting the center with a huge radius.
             m.ApplyBlast(Vector3.zero, 5f);
             Assert.AreEqual(0, m.AliveVoxelCount);
 
             // A second blast on a dead meteor must be a no-op.
-            int destroyed = m.ApplyBlast(Vector3.zero, 0.28f);
+            int destroyed = m.ApplyBlast(Vector3.zero, 0.28f).TotalDestroyed;
             Assert.AreEqual(0, destroyed);
             Destroy(m);
         }
@@ -174,7 +177,7 @@ namespace MeteorIdle.Tests.Editor
         {
             var m = NewMeteor();
             int before = m.AliveVoxelCount;
-            int destroyed = m.ApplyBlast(Vector3.zero, 0.28f);
+            int destroyed = m.ApplyBlast(Vector3.zero, 0.28f).TotalDestroyed;
             Assert.AreEqual(before - destroyed, m.AliveVoxelCount,
                 "AliveVoxelCount must track exactly what ApplyBlast reports");
             Destroy(m);
@@ -205,22 +208,72 @@ namespace MeteorIdle.Tests.Editor
         }
 
         [Test]
-        public void ScaleInvariant_SameGridDestructionRegardlessOfScale()
+        public void ScaleInvariant_SameGridDamageRegardlessOfScale()
         {
             // The key property from CLAUDE.md: gridRadius = worldRadius * localToGrid —
-            // blasts cover the same cell count on any meteor size. We hit two identical
-            // meteors at different scales with the same world blast radius and expect
-            // roughly the same destroyed count.
+            // blasts cover the same cell count on any meteor size. Under cores, the
+            // true scale-invariant metric is damageDealt (cells covered * 1 HP each),
+            // not TotalDestroyed — because different scales produce different core
+            // counts and HP totals, so some blast-covered cells may survive the hit
+            // at one scale and die at another. damageDealt is the cell-coverage metric
+            // the original invariant targeted.
             var small = NewMeteor(seed: 7, scale: 0.75f);
             var large = NewMeteor(seed: 7, scale: 1.5f);
 
-            int dSmall = small.ApplyBlast(small.transform.position, 0.28f);
-            int dLarge = large.ApplyBlast(large.transform.position, 0.28f);
+            int damageSmall = small.ApplyBlast(small.transform.position, 0.28f).damageDealt;
+            int damageLarge = large.ApplyBlast(large.transform.position, 0.28f).damageDealt;
 
-            Assert.AreEqual(dSmall, dLarge,
-                "same seed + same world blast radius should destroy the same cell count");
+            Assert.AreEqual(damageSmall, damageLarge,
+                "same seed + same world blast radius should deal damage to the same cell count");
             Destroy(small);
             Destroy(large);
+        }
+
+        [Test]
+        public void ApplyBlast_MultiHitCore_RequiresMultipleBlastsToKill()
+        {
+            // Spawn a max-size meteor so the core HP is 5 (the highest in the
+            // linear scale from the spec). Four consecutive tight blasts on the
+            // same core cell should NOT fully destroy it; the 5th should.
+            var m = NewMeteor(seed: 42, scale: 1.2f);
+
+            // Find one core cell via reflection on the private kind field.
+            var kindField = typeof(Meteor).GetField("kind",
+                BindingFlags.NonPublic | BindingFlags.Instance);
+            Assert.IsNotNull(kindField, "Meteor.kind private field not found");
+            var kind = (VoxelKind[,])kindField.GetValue(m);
+
+            int coreX = -1, coreY = -1;
+            for (int y = 0; y < VoxelMeteorGenerator.GridSize && coreX < 0; y++)
+                for (int x = 0; x < VoxelMeteorGenerator.GridSize && coreX < 0; x++)
+                    if (kind[x, y] == VoxelKind.Core) { coreX = x; coreY = y; }
+            Assert.GreaterOrEqual(coreX, 0, "size 1.2 meteor must have at least one core");
+
+            // Aim a tight blast (small radius) directly at the core's world
+            // position so the blast circle covers only that one cell.
+            Vector3 coreWorld = m.GetVoxelWorldPosition(coreX, coreY);
+            const float tightRadius = 0.05f;
+
+            // First 4 blasts: core still alive, coreDestroyed is always 0 per blast.
+            int totalCoreDestroyed = 0;
+            for (int i = 0; i < 4; i++)
+            {
+                var result = m.ApplyBlast(coreWorld, tightRadius);
+                totalCoreDestroyed += result.coreDestroyed;
+            }
+            Assert.AreEqual(0, totalCoreDestroyed,
+                "core HP 5 must survive 4 tight blasts");
+            Assert.IsTrue(m.IsVoxelPresent(coreX, coreY),
+                "core cell must still be present after 4 blasts");
+
+            // 5th blast kills the core.
+            var killResult = m.ApplyBlast(coreWorld, tightRadius);
+            Assert.AreEqual(1, killResult.coreDestroyed,
+                "5th blast should destroy the core cell");
+            Assert.IsFalse(m.IsVoxelPresent(coreX, coreY),
+                "core cell must be gone after 5 blasts");
+
+            Destroy(m);
         }
     }
 }

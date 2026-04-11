@@ -100,7 +100,10 @@ namespace MeteorIdle.Tests.PlayMode
         {
             yield return SetupScene();
 
-            var meteor = SpawnTestMeteor(new Vector3(0f, 200f, 0f), seed: 303);
+            // Smallest-size meteor so coreHp = 1 and the blanket blast below
+            // (radius 10) is guaranteed to kill every cell — including cores —
+            // in one call. Needed after Iter 1 introduced multi-HP cores.
+            var meteor = SpawnTestMeteor(new Vector3(0f, 200f, 0f), seed: 303, scale: 0.525f);
             Assert.IsTrue(meteor.PickRandomPresentVoxel(out int gx, out int gy));
 
             var missile = SpawnTestMissile(new Vector3(0f, 0f, 0f));

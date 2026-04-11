@@ -88,7 +88,9 @@ namespace MeteorIdle.Tests.Editor
         [Test]
         public void PickRandomPresentVoxel_DeadMeteor_ReturnsFalse()
         {
-            var m = NewMeteor();
+            // Smallest-size meteor: coreHp = 1 so a single huge blast kills
+            // every cell in one pass.
+            var m = NewMeteor(scale: 0.525f);
             m.ApplyBlast(Vector3.zero, 5f); // nuke everything
             Assert.AreEqual(0, m.AliveVoxelCount);
 
@@ -100,7 +102,9 @@ namespace MeteorIdle.Tests.Editor
         [Test]
         public void IsAlive_TracksDestructionState()
         {
-            var m = NewMeteor();
+            // Smallest-size meteor: coreHp = 1 so a single huge blast kills
+            // every cell in one pass and flips IsAlive to false.
+            var m = NewMeteor(scale: 0.525f);
             Assert.IsTrue(m.IsAlive);
 
             m.ApplyBlast(Vector3.zero, 5f);

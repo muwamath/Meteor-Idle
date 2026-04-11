@@ -103,7 +103,11 @@ namespace MeteorIdle.Tests.PlayMode
 
             // Two meteors at the same distance — the closer one is destroyed
             // by a big blast, so the farther one must now be selected.
-            var closer = SpawnTestMeteor(new Vector3(0f, 3f, 0f), seed: 55);
+            // Closer meteor spawned at minimum size so coreHp = 1 and the
+            // single blanket blast kills all cells (including cores) in one
+            // pass. Iter 1's HP-aware ApplyBlast requires this — a default-
+            // size meteor would leave cores alive at HP > 0.
+            var closer = SpawnTestMeteor(new Vector3(0f, 3f, 0f), seed: 55, scale: 0.525f);
             var farther = SpawnTestMeteor(new Vector3(0f, 5f, 0f), seed: 66);
             _injectedActive.Add(closer);
             _injectedActive.Add(farther);

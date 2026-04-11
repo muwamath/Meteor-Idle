@@ -197,7 +197,9 @@ namespace MeteorIdle.Tests.Editor
         [Test]
         public void DeadMeteor_ReturnsZeroAndDoesNotThrow()
         {
-            var m = NewMeteor();
+            // Smallest-size meteor: coreHp = 1, so a single huge blast kills
+            // every cell (dirt AND cores) in one pass.
+            var m = NewMeteor(scale: 0.525f);
             m.ApplyBlast(Vector3.zero, 5f); // nuke everything
             Assert.AreEqual(0, m.AliveVoxelCount);
 

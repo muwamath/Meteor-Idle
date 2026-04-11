@@ -409,7 +409,12 @@ namespace MeteorIdle.Tests.PlayMode
                 : 4f + 0.6f * speedLevel;
             float distance = Vector3.Distance(slotPos, meteorPos);
             float flight = distance / projectileSpeed;
-            float budget = flight + 3.5f;
+            // 5.5s headroom (up from 3.5s) to give the far-side slot case
+            // (Hit_Railgun_SideSlot_FarMeteor: flight ~2.71s, total budget
+            // used to be 6.21s) enough slop against Unity's background tasks
+            // during PlayMode runs. Confirmed flaky at the old margin during
+            // Iter 1 Phase 2 verification.
+            float budget = flight + 5.5f;
             yield return new WaitForSeconds(budget);
 
             Assert.Less(
