@@ -79,6 +79,14 @@ public class Meteor : MonoBehaviour
         // requires voxels[x,y] == true.
         gx = Mathf.Clamp(gx, 0.5f, VoxelMeteorGenerator.GridSize - 0.5f);
         gy = Mathf.Clamp(gy, 0.5f, VoxelMeteorGenerator.GridSize - 0.5f);
+
+        // The meteor's CircleCollider2D radius never shrinks as voxels are destroyed, so
+        // a missile can trigger on an eroded rim that has no live voxels within the blast
+        // circle — landing a "hit in empty space". Walk the impact coordinates inward
+        // (toward the meteor center) until we find a live voxel, then blast there. This
+        // produces an outside-rim crater on the first live chunk along the missile's
+        // entry path, without being able to reach the far side through a clean hole.
+        WalkInwardToAliveCell(ref gx, ref gy);
         // Scale-invariant: the blast covers the same number of grid cells on any
         // size meteor. Without this, big meteors get proportionally smaller blasts
         // (in grid units) and miss outer columns that small meteors would hit.
@@ -127,6 +135,42 @@ public class Meteor : MonoBehaviour
             owner?.Release(this);
         }
         return destroyed;
+    }
+
+    // Walk (gx, gy) from the contact point toward the meteor center, stopping at the
+    // first alive voxel encountered. This keeps the blast on the outside rim at the
+    // missile's entry side — if the near rim is intact we stay there; if the near rim
+    // has been eroded, the blast shifts inward by however much has been carved away,
+    // hitting the next surviving layer from the same side. The walk stops at the center,
+    // so a missile that grazes a fully-hollowed-out meteor can't reach through to the
+    // far side.
+    private void WalkInwardToAliveCell(ref float gx, ref float gy)
+    {
+        const float center = VoxelMeteorGenerator.GridSize * 0.5f;
+        float dx = center - gx;
+        float dy = center - gy;
+        float distToCenter = Mathf.Sqrt(dx * dx + dy * dy);
+        if (distToCenter < 0.001f) return;
+
+        float stepX = dx / distToCenter;
+        float stepY = dy / distToCenter;
+        // Step in 0.5-cell increments so adjacent cells along the ray are both checked.
+        int maxSteps = Mathf.CeilToInt(distToCenter * 2f);
+        float cx = gx;
+        float cy = gy;
+        for (int i = 0; i <= maxSteps; i++)
+        {
+            int ix = Mathf.Clamp(Mathf.FloorToInt(cx), 0, VoxelMeteorGenerator.GridSize - 1);
+            int iy = Mathf.Clamp(Mathf.FloorToInt(cy), 0, VoxelMeteorGenerator.GridSize - 1);
+            if (voxels[ix, iy])
+            {
+                gx = ix + 0.5f;
+                gy = iy + 0.5f;
+                return;
+            }
+            cx += stepX * 0.5f;
+            cy += stepY * 0.5f;
+        }
     }
 
     private Vector3 VoxelCenterToWorld(int gx, int gy)
