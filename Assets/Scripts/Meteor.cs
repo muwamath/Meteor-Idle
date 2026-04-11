@@ -28,6 +28,7 @@ public class Meteor : MonoBehaviour
     private float fadeTimer;
 
     public int AliveVoxelCount => aliveCount;
+    public Vector2 Velocity => velocity;
     public bool IsAlive => !dead && !fading && aliveCount > 0 && gameObject.activeInHierarchy;
 
     private void Awake()
