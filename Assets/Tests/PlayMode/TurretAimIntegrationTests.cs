@@ -228,6 +228,67 @@ namespace MeteorIdle.Tests.PlayMode
                 fireRateLevel: 34,
                 homingLevel: 0);
 
+        // User-reported scenario 2026-04-11 (second report, screenshot 3):
+        // Railgun fires a shot that tunnels through the meteor's center, then
+        // subsequent shots aim at the meteor's (now-dead) center, fly through
+        // the existing tunnel, and hit nothing. Meteor stays partially alive
+        // forever.
+        //
+        // This test fires many shots at a STATIONARY meteor and asserts that
+        // most of its voxels get destroyed. On pre-fix code the first shot
+        // carves a tunnel (~4 voxels destroyed), subsequent shots fire through
+        // the same tunnel in empty cells (0 voxels destroyed each), and the
+        // meteor stays at roughly initial - 4 voxels. Post-fix, the railgun
+        // picks a random live voxel to aim at for each shot, so over ~20 shots
+        // many different voxels get hit.
+        [UnityTest]
+        public IEnumerator Railgun_MultipleShots_DrainsStationaryMeteor()
+        {
+            yield return SetupScene();
+
+            var slot = SpawnTestSlot(new Vector3(0f, -5f, 0f), WeaponType.Railgun);
+            var turret = (RailgunTurret)slot.ActiveTurret;
+            Assert.IsNotNull(turret);
+
+            var spawner = SpawnTestSpawner();
+            turret.SetRuntimeRefs(spawner);
+
+            // Boost fire rate, rotation, and speed so the test runs quickly.
+            // Leave weight at base (4 voxels per shot) so the per-shot budget
+            // can't single-shot the meteor by itself.
+            turret.Stats.fireRate.level = 100;       // 5.2 Hz, chargeDuration ~0.192s
+            turret.Stats.rotationSpeed.level = 100;  // 1220 deg/s — rotation converges instantly
+            turret.Stats.speed.level = 20;           // 66 world/s — flight ~0.15s at distance 10
+
+            // Stationary meteor directly above. No lead needed. The turret's
+            // FindTarget always picks this meteor.
+            var meteor = SpawnTestMeteor(new Vector3(0f, 5f, 0f));
+            SetMeteorVelocity(meteor, Vector2.zero);
+            int initialVoxels = meteor.AliveVoxelCount;
+            Assert.Greater(initialVoxels, 30, "meteor should have plenty of voxels for this test");
+            GetSpawnerActiveList(spawner).Add(meteor);
+
+            // Force the first charge ready. Subsequent shots charge naturally
+            // in ~0.192s each.
+            ForceRailgunReady(turret);
+
+            // ~25 shots at 5.2 Hz ≈ 4.8 sec of charge time. Plus the first-shot
+            // rotation and per-shot flight time. 6 seconds is a generous budget.
+            yield return new WaitForSeconds(6f);
+
+            int finalVoxels = meteor.AliveVoxelCount;
+            int destroyed = initialVoxels - finalVoxels;
+
+            Assert.Greater(
+                destroyed, 20,
+                $"railgun should destroy more than 20 voxels over ~25 shots at weight 4/shot " +
+                $"(initial={initialVoxels}, final={finalVoxels}, destroyed={destroyed}). " +
+                $"If this is stuck near {initialVoxels - 4} the railgun is re-targeting a tunneled " +
+                $"dead center instead of live voxels.");
+
+            TeardownScene();
+        }
+
         // Overload that also sets FireRate (or equivalent) for tests that
         // want to match a specific user-session upgrade state. FireRate only
         // affects the single-shot scenario indirectly (via charge duration),
@@ -256,6 +317,7 @@ namespace MeteorIdle.Tests.PlayMode
                 var railgun = (RailgunTurret)turret;
                 railgun.Stats.speed.level = speedLevel;
                 railgun.Stats.fireRate.level = fireRateLevel;
+                railgun.Stats.rotationSpeed.level = 50;
             }
             else
             {
@@ -263,6 +325,7 @@ namespace MeteorIdle.Tests.PlayMode
                 missile.Stats.missileSpeed.level = speedLevel;
                 missile.Stats.fireRate.level = fireRateLevel;
                 missile.Stats.homing.level = homingLevel;
+                missile.Stats.rotationSpeed.level = 50;
             }
 
             var meteor = SpawnTestMeteor(meteorPos);
@@ -311,17 +374,21 @@ namespace MeteorIdle.Tests.PlayMode
             turret.SetRuntimeRefs(spawner);
 
             // Upgrade the relevant stat(s) to the requested level via the
-            // public Stats getter on each concrete turret.
+            // public Stats getter on each concrete turret. Also boost
+            // RotationSpeed so rotation convergence is never the test
+            // bottleneck — we're testing aim, not how fast the barrel slews.
             if (weapon == WeaponType.Railgun)
             {
                 var railgun = (RailgunTurret)turret;
                 railgun.Stats.speed.level = speedLevel;
+                railgun.Stats.rotationSpeed.level = 50;
             }
             else
             {
                 var missile = (MissileTurret)turret;
                 missile.Stats.missileSpeed.level = speedLevel;
                 missile.Stats.homing.level = homingLevel;
+                missile.Stats.rotationSpeed.level = 50;
             }
 
             // Spawn the meteor with a controlled velocity.
@@ -342,7 +409,7 @@ namespace MeteorIdle.Tests.PlayMode
                 : 4f + 0.6f * speedLevel;
             float distance = Vector3.Distance(slotPos, meteorPos);
             float flight = distance / projectileSpeed;
-            float budget = flight + 2.5f;
+            float budget = flight + 3.5f;
             yield return new WaitForSeconds(budget);
 
             Assert.Less(
