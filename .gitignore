@@ -54,3 +54,6 @@ Assets/Screenshots.meta
 # === Local tooling (not the project) ===
 .claude/
 .remember/
+
+# === User's private scratch notes (not for Claude to read unless directed) ===
+todo.md
