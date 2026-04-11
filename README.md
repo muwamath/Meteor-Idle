@@ -2,6 +2,12 @@
 
 A 2D desktop idle game built in Unity 6. Voxel meteors rain from the top of the screen; up to 3 base slots along the bottom auto-fire weapons that chew chunks out of them. Each destroyed voxel pays out. Spend the money to buy new slots, choose weapons, and upgrade them.
 
+## Play it
+
+**<https://muwamath.github.io/Meteor-Idle/>**
+
+Runs in any modern browser. The WebGL build is Brotli-compressed with Unity's decompression fallback enabled, so it works on GitHub Pages without any server-side `Content-Encoding` configuration. Total transfer is roughly 14 MB; expect a short initial load on the first visit, instant on subsequent visits via the browser cache.
+
 ## Status
 
 Early in development. **3 base slots, 2 weapons (Missile and Railgun)**, no persistence, no audio. Core loop is playable end-to-end: buy slots, build either weapon into them, fire at meteors, upgrade individual stats per weapon. The economy is currently flattened to **$1 per purchase** for fast development iteration; balance pass comes later.
@@ -16,6 +22,15 @@ Early in development. **3 base slots, 2 weapons (Missile and Railgun)**, no pers
 3. Open the project in Unity Hub → **Add project from disk** → select the cloned folder.
 4. Once the editor opens, load `Assets/Scenes/Game.unity`.
 5. Hit **Play**.
+
+### Building and deploying the WebGL player
+
+The live build at <https://muwamath.github.io/Meteor-Idle/> is produced locally — no CI. Two scripts drive the pipeline, both in `tools/`:
+
+- **`tools/build-webgl.sh`** — headless Unity build via `Unity -batchmode -executeMethod BuildScripts.BuildWebGL`. Writes to `build/WebGL/` (gitignored). Close the Unity Editor before running; the script refuses to start while the editor holds the project lock.
+- **`tools/deploy-webgl.sh`** — runs the identity scrub on the build output, `rsync`s it into a `gh-pages` linked worktree at `../Meteor-Idle-gh-pages`, writes `.nojekyll`, and makes a commit. The script does **not** push — it prints the exact `git push` command for manual review.
+
+Both scripts must be run from the repo root. The deploy fires after a branch has been fast-forwarded to `main` and play-tested end-to-end in the editor.
 
 ## How to play
 
@@ -89,6 +104,9 @@ Tests/
   PlayMode/                     20 physics/integration tests (~16s runtime)
 tools/
   identity-scrub.py             pre-commit identity-leak check
+  build-webgl.sh                headless Unity CLI wrapper for the WebGL build
+  deploy-webgl.sh               rsyncs build/WebGL/ to the gh-pages worktree, scrubs, commits
+Assets/Editor/BuildScripts.cs   editor-side BuildWebGL entry point invoked by build-webgl.sh
 docs/superpowers/
   specs/                        design docs (one per iteration)
   plans/                        implementation plans (task-by-task)

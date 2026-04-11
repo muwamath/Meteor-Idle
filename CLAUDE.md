@@ -86,6 +86,10 @@ Tests/
     FloatingTextTests.cs        rise, alpha fade, auto-destruction
 tools/
   identity-scrub.py             pre-commit identity-leak check (see "Identity scrub" section)
+  build-webgl.sh                headless Unity CLI wrapper: BuildScripts.BuildWebGL -> build/WebGL/
+  deploy-webgl.sh               rsyncs build/WebGL/ to the gh-pages worktree, scrubs, commits
+Assets/Editor/BuildScripts.cs   Editor-side BuildWebGL entry point (invoked via -executeMethod)
+build/                          gitignored Unity build output; WebGL lands under build/WebGL/
 docs/superpowers/
   specs/                        design docs (spec per iteration)
   plans/                        implementation plans (task-by-task)
@@ -267,6 +271,47 @@ On match, it prints *"IDENTITY LEAK DETECTED"* and a count — but **not the tok
 
 On first use in a fresh clone, the script exits with code 2 and instructions. Populate `.claude-identity-scrub` with the tokens from the feedback-identity-leaks memory file, then re-run.
 
+## WebGL build and GitHub Pages deploy
+
+The game ships as a WebGL build hosted on `gh-pages` → <https://muwamath.github.io/Meteor-Idle/>. Builds are produced locally (no CI), and deploys are wired into the "promote a branch to main" flow below. No Unity license secrets, no GitHub Actions, no automated push.
+
+### Pipeline
+
+1. **`tools/build-webgl.sh`** — Unity CLI wrapper that runs `Unity -batchmode -nographics -quit -projectPath … -buildTarget WebGL -executeMethod BuildScripts.BuildWebGL`. Deletes `build/WebGL/` first, writes Unity's log to `build/webgl-build.log`, fails loudly if Unity isn't installed or the build exits non-zero. **Refuses to run while the Unity Editor has the project open** because the editor holds an exclusive lock — close Unity before calling this script.
+2. **`Assets/Editor/BuildScripts.cs`** — the `BuildScripts.BuildWebGL` editor method invoked by `-executeMethod`. Hardcodes `Assets/Scenes/Game.unity` as the only scene and `build/WebGL` as the output path. Calls `EditorApplication.Exit(1)` on `BuildResult != Succeeded` so the shell wrapper can detect failure.
+3. **`tools/deploy-webgl.sh`** — after a successful build, rsyncs `build/WebGL/` into a git worktree at `../Meteor-Idle-gh-pages` on the `gh-pages` branch. Writes `.nojekyll` so Pages doesn't filter the `Build/` subdir. Stages and commits, but **does not push** — it prints the exact `git push` command for manual review. Refuses to run if the build output is missing, if the patterns file is missing, if there are uncommitted changes in `Assets/` or `ProjectSettings/`, or if the identity scrub finds even a single match.
+
+### Player settings the pipeline depends on
+
+- `PlayerSettings.WebGL.compressionFormat = Brotli (0)`
+- `PlayerSettings.WebGL.decompressionFallback = true (1)`
+
+This pairing is the critical bit. GitHub Pages can't emit `Content-Encoding: br` headers, so a naked Brotli build refuses to load. The fallback embeds Unity's Brotli decoder in `WebGL.loader.js` (which bloats it from 27 KB → 118 KB) and renames artifacts to `WebGL.*.unityweb` so browsers don't auto-decompress by extension. The loader decompresses in JavaScript during startup. Net effect: ~14 MB total transfer (vs ~63 MB uncompressed) and still works on Pages with zero server config. **Don't "fix" this by switching to Disabled** — that was tried, shipped 63 MB, and the smaller build with fallback is strictly better.
+
+### Identity scrub on the build output
+
+The build directory is gitignored, so `identity-scrub.py`'s git-based modes don't cover it. `deploy-webgl.sh` falls back to a direct `grep -rIFif` against the filesystem. Two subtle requirements:
+
+- **Strip comment and blank lines from the patterns file before feeding grep**, or `grep -f` interprets the blank line as "match every line" and every file becomes a 100% false positive. (This bug was shipped and reverted — see commit `72aba68`.)
+- **Wrap the grep in `set +e` / `set -e`** so `pipefail` doesn't kill the script when grep exits with code 1 for "no matches found" (grep's normal success path for a clean build).
+
+Known gap: `grep -I` skips binary files, so `Build/*.wasm`, `Build/*.data`, and `Build/*.framework.js.unityweb` are not scanned. In practice the high-risk leak vectors (`productName`, `companyName`, file paths in `index.html` / `WebGL.loader.js`) live in text files, and the scrub catches them. If you ever need to close the binary gap, add a `strings "${f}" | grep -Ff` pass for files `grep -I` skips.
+
+### First-time gh-pages bootstrap
+
+Already done once. For reference, the bootstrap steps were:
+
+```
+git worktree add --orphan -b gh-pages ../Meteor-Idle-gh-pages
+cd ../Meteor-Idle-gh-pages
+touch .nojekyll
+# … initial placeholder README.md …
+git add -A && git commit -m "Initial gh-pages branch"
+git push -u origin gh-pages
+```
+
+Then Pages was enabled manually in the repo Settings UI (`Build and deployment → Source → Deploy from a branch → gh-pages / (root)`). **Never use `gh api` or `gh pr …` on this repo** — the `gh` CLI is authenticated as the user's main GitHub identity, and calling it against `muwamath/Meteor-Idle` routes API requests through the wrong account. All repo-level operations beyond plain `git push` via the `github-muwamath` SSH alias must be done manually in the browser.
+
 ## Testing
 
 Two test assemblies in this project:
@@ -347,6 +392,7 @@ Inherit from `PlayModeTestFixture`. `SpawnTestMeteor` automatically assigns the 
 2. Run a manual play-mode session in the editor and verify the change end-to-end.
 3. Run `python3 tools/identity-scrub.py` against the staged diff (and again against the full branch range before push).
 4. Hand back to user for sign-off. Only after explicit approval, fast-forward `main` to the branch tip.
+5. **After fast-forwarding, produce and ship a fresh WebGL build.** Close the Unity Editor, then run `tools/build-webgl.sh` followed by `tools/deploy-webgl.sh`. Smoke-test the staged `gh-pages` worktree if the change touched anything user-visible, then `git -C ../Meteor-Idle-gh-pages push origin gh-pages`. Confirm <https://muwamath.github.io/Meteor-Idle/> is serving the new build before closing the loop.
 
 Tests alone are not sufficient — they don't catch scene drift, panel-click routing, UI layout, or timing issues.
 
