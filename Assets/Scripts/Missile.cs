@@ -92,8 +92,20 @@ public class Missile : MonoBehaviour
         var meteor = other.GetComponentInParent<Meteor>();
         if (meteor == null || !meteor.IsAlive) return;
 
+        // Use the turret-picked target voxel as the blast center when we're hitting our
+        // intended meteor and the voxel is still alive. The missile's physical contact
+        // point is on the meteor's circle collider edge, which stays at full radius even
+        // after voxels around it are destroyed — so a contact-point blast on an eroded
+        // rim can "hit air" and destroy nothing. Centering on the target voxel guarantees
+        // every successful collision with the aimed meteor deals damage.
+        Vector3 impactPoint = transform.position;
+        if (meteor == homingTarget && meteor.IsVoxelPresent(targetGx, targetGy))
+        {
+            impactPoint = meteor.GetVoxelWorldPosition(targetGx, targetGy);
+        }
+
         float totalRadius = impactRadius + blastRadius;
-        int destroyed = meteor.ApplyBlast(transform.position, totalRadius);
+        int destroyed = meteor.ApplyBlast(impactPoint, totalRadius);
 
         if (destroyed > 0)
         {
