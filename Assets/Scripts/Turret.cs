@@ -84,13 +84,17 @@ public class Turret : MonoBehaviour
         }
 
         float speed = stats.missileSpeed.CurrentValue;
+        // Only pass the target meteor for homing if we successfully picked a voxel to aim at.
+        // When hasVoxel is false (meteor has no live cells between FindTarget and Fire),
+        // the missile flies as a dumb projectile toward barrel.up.
+        Meteor homingTarget = hasVoxel ? target : null;
         missile.Launch(
             this,
             spawnPos,
             dir * speed,
             stats.damage.CurrentValue,
             stats.blastRadius.CurrentValue,
-            target,
+            homingTarget,
             gx,
             gy,
             stats.homing.CurrentValue);

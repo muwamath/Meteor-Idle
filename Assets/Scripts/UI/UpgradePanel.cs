@@ -16,8 +16,10 @@ public class UpgradePanel : MonoBehaviour
 
     private void Start()
     {
-        if (stats == null || buttonPrefab == null ||
-            launcherColumnParent == null || missileColumnParent == null) return;
+        if (stats == null)              { Debug.LogError("[UpgradePanel] stats is not assigned", this); return; }
+        if (buttonPrefab == null)       { Debug.LogError("[UpgradePanel] buttonPrefab is not assigned", this); return; }
+        if (launcherColumnParent == null) { Debug.LogError("[UpgradePanel] launcherColumnParent is not assigned", this); return; }
+        if (missileColumnParent == null)  { Debug.LogError("[UpgradePanel] missileColumnParent is not assigned", this); return; }
 
         foreach (var stat in stats.All())
         {

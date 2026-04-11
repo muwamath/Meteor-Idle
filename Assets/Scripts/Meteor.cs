@@ -150,8 +150,18 @@ public class Meteor : MonoBehaviour
     public bool PickRandomPresentVoxel(out int gx, out int gy)
     {
         gx = 0; gy = 0;
-        if (voxels == null || aliveCount <= 0) return false;
-        int targetIndex = Random.Range(0, aliveCount);
+        if (voxels == null) return false;
+
+        // Count present cells directly instead of trusting aliveCount. Cheap on a 10x10 grid
+        // and defensive against any future drift between aliveCount and the voxel grid.
+        int liveCount = 0;
+        for (int y = 0; y < VoxelMeteorGenerator.GridSize; y++)
+            for (int x = 0; x < VoxelMeteorGenerator.GridSize; x++)
+                if (voxels[x, y]) liveCount++;
+
+        if (liveCount == 0) return false;
+
+        int targetIndex = Random.Range(0, liveCount);
         int seen = 0;
         for (int y = 0; y < VoxelMeteorGenerator.GridSize; y++)
         {
