@@ -44,13 +44,14 @@ public class RailgunRound : MonoBehaviour
         int layer = LayerMask.NameToLayer("Meteors");
         if (layer < 0)
         {
-            Debug.LogError("[RailgunRound] Meteors layer not defined", this);
-            meteorLayerMask = ~0; // fall back to all layers — better than nothing
+            // Fail loud rather than fall back to ~0: a wide mask would let
+            // raycasts hit missiles on the Default layer and silently violate
+            // the layer-isolation invariant the railgun depends on.
+            Debug.LogError("[RailgunRound] Meteors layer not defined — disabling round", this);
+            enabled = false;
+            return;
         }
-        else
-        {
-            meteorLayerMask = 1 << layer;
-        }
+        meteorLayerMask = 1 << layer;
     }
 
     private void Update()
