@@ -9,7 +9,10 @@ public class Turret : MonoBehaviour
     [SerializeField] private Transform missilePoolParent;
     [SerializeField] private MeteorSpawner meteorSpawner;
     [SerializeField] private ParticleSystem muzzleFlash;
-    [SerializeField] private float range = 14f;
+    // Large enough to cover the full playfield from any slot position. Camera
+    // ortho size 9 → view roughly ±16 × ±9 world. Worst-case distance from a
+    // side slot to the opposite corner is ~26; 30 gives comfortable headroom.
+    [SerializeField] private float range = 30f;
     [SerializeField] private float aimAlignmentDeg = 10f;
 
     private SimplePool<Missile> missilePool;

@@ -118,8 +118,17 @@ public class Meteor : MonoBehaviour
         // circle — landing a "hit in empty space". Walk the impact coordinates inward
         // (toward the meteor center) until we find a live voxel, then blast there. This
         // produces an outside-rim crater on the first live chunk along the missile's
-        // entry path, without being able to reach the far side through a clean hole.
+        // entry path.
         WalkInwardToAliveCell(ref gx, ref gy);
+
+        // Safety net: if the inward walk ended on a dead cell (the impact landed in
+        // a fully-bored tunnel where no live voxel sits along the ray to center), fall
+        // back to the nearest alive voxel anywhere in the grid. A missile must always
+        // damage the meteor it collides with — the user's requirement is "never pass
+        // through". aliveCount > 0 is guaranteed by the early return above.
+        int snapX = Mathf.Clamp(Mathf.FloorToInt(gx), 0, VoxelMeteorGenerator.GridSize - 1);
+        int snapY = Mathf.Clamp(Mathf.FloorToInt(gy), 0, VoxelMeteorGenerator.GridSize - 1);
+        if (!voxels[snapX, snapY]) SnapToNearestAliveCell(ref gx, ref gy);
         // Scale-invariant: the blast covers the same number of grid cells on any
         // size meteor. Without this, big meteors get proportionally smaller blasts
         // (in grid units) and miss outer columns that small meteors would hit.
@@ -168,6 +177,37 @@ public class Meteor : MonoBehaviour
             owner?.Release(this);
         }
         return destroyed;
+    }
+
+    // Full-grid scan for the alive voxel closest to (gx, gy). Only called as a
+    // last-resort fallback when the walk-inward search ended on a dead cell —
+    // guarantees that a missile collision always lands on some live voxel so we
+    // never return 0 destroyed on a valid hit.
+    private void SnapToNearestAliveCell(ref float gx, ref float gy)
+    {
+        int bestX = -1, bestY = -1;
+        float bestD2 = float.MaxValue;
+        for (int y = 0; y < VoxelMeteorGenerator.GridSize; y++)
+        {
+            for (int x = 0; x < VoxelMeteorGenerator.GridSize; x++)
+            {
+                if (!voxels[x, y]) continue;
+                float cx = x + 0.5f;
+                float cy = y + 0.5f;
+                float d2 = (cx - gx) * (cx - gx) + (cy - gy) * (cy - gy);
+                if (d2 < bestD2)
+                {
+                    bestD2 = d2;
+                    bestX = x;
+                    bestY = y;
+                }
+            }
+        }
+        if (bestX >= 0)
+        {
+            gx = bestX + 0.5f;
+            gy = bestY + 0.5f;
+        }
     }
 
     // Walk (gx, gy) from the contact point toward the meteor center, stopping at the

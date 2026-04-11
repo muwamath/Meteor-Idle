@@ -95,20 +95,16 @@ public class Missile : MonoBehaviour
         float totalRadius = impactRadius + blastRadius;
         int destroyed = meteor.ApplyBlast(transform.position, totalRadius);
 
-        // Phantom hit: the missile entered the meteor's circle collider, but the
-        // contact point (and the walk-inward search) found no live voxels — the
-        // rim has been carved away in this region. Don't explode, don't despawn;
-        // let the missile keep flying through the empty crater. It may still hit
-        // a different meteor along its remaining path, or time out via lifetime.
-        if (destroyed <= 0) return;
-
-        if (GameManager.Instance != null)
-            GameManager.Instance.AddMoney(destroyed);
-
-        if (floatingTextPrefab != null)
+        if (destroyed > 0)
         {
-            var ft = Instantiate(floatingTextPrefab, transform.position, Quaternion.identity);
-            ft.Show($"+${destroyed}");
+            if (GameManager.Instance != null)
+                GameManager.Instance.AddMoney(destroyed);
+
+            if (floatingTextPrefab != null)
+            {
+                var ft = Instantiate(floatingTextPrefab, transform.position, Quaternion.identity);
+                ft.Show($"+${destroyed}");
+            }
         }
 
         if (explosionPrefab != null)

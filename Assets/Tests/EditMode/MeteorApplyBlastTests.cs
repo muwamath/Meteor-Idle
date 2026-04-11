@@ -120,20 +120,24 @@ namespace MeteorIdle.Tests.Editor
         }
 
         [Test]
-        public void FullyTunneled_FarSideRemainsIntact()
+        public void FullyTunneled_NextHitStillDealsDamage_NoPhantom()
         {
             var m = NewMeteor();
             Vector3 bottomContact = new Vector3(0f, -1.2f, 0f);
 
-            // Hit enough times to bore through near side.
-            for (int i = 0; i < 20; i++) m.ApplyBlast(bottomContact, 0.28f);
+            // Bore through the near side with enough repeated hits that the walk-inward
+            // ray straight up through column 5 ends on an all-dead column.
+            for (int i = 0; i < 15; i++) m.ApplyBlast(bottomContact, 0.28f);
 
-            // Top-row cells (y = 9) should still have at least one survivor for a fresh
-            // seed. If the walk-inward were reaching the far rim, this would be empty.
-            int topAlive = 0;
-            for (int x = 0; x < 10; x++) if (m.IsVoxelPresent(x, 9)) topAlive++;
-            Assert.Greater(topAlive, 0,
-                "far-side (top) voxels must survive repeated bottom hits — walk must not reach through");
+            int beforeNext = m.AliveVoxelCount;
+            int destroyed = m.ApplyBlast(bottomContact, 0.28f);
+
+            // The SnapToNearestAliveCell fallback kicks in and redirects the blast to the
+            // closest surviving voxel anywhere in the grid. The user's rule: a missile
+            // must always damage a meteor it collides with — never a phantom hit.
+            Assert.Greater(destroyed, 0,
+                "once the near-side column is fully bored, the nearest-alive fallback must still crater");
+            Assert.AreEqual(beforeNext - destroyed, m.AliveVoxelCount);
             Destroy(m);
         }
 
