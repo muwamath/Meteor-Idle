@@ -19,12 +19,24 @@ Early in development. Single base, single weapon, no persistence, no audio. Core
 
 ## How to play
 
-- Meteors spawn from above and drift downward.
-- The turret auto-targets and auto-fires — at starting stats it's deliberately slow and wobbly.
-- Each missile that hits a meteor chews out a small cluster of voxel cubes. You're paid **$1 per voxel destroyed**.
-- Click the turret base at the bottom of the screen to open the upgrade panel.
-- Spend money on five stats: Fire Rate, Missile Speed, Damage, Accuracy, Blast Radius.
+- Meteors spawn from above and drift downward. They're made of small cube voxels on a 10×10 grid.
+- The turret at the bottom auto-targets the nearest meteor and auto-fires missiles toward a specific voxel on it.
+- Each missile that hits a meteor destroys a small cluster of voxels. You earn **$1 per voxel destroyed** — partial destruction pays out, so every hit counts, even if the meteor isn't fully cleared.
+- **Click the turret base** to open the upgrade panel (centered on screen). Click again to close.
+- Upgrades are split into two categories:
+
+  **Launcher**
+  - **Fire Rate** — shots per second
+  - **Rotation Speed** — how quickly the barrel rotates to track targets
+
+  **Missile**
+  - **Missile Speed** — how fast missiles travel
+  - **Damage** — how wide the direct impact radius is
+  - **Blast Radius** — extra splash destruction around the impact
+  - **Homing** — how aggressively the missile steers mid-flight toward its target voxel
+
 - Meteors that escape to the ground don't penalize you (yet).
+- Press **`` ` ``** (backquote) in the editor while playing to open a debug overlay that pauses the game and lets you tweak values (currently: set current money). The debug overlay only exists in editor play mode — it's stripped from player builds.
 
 ## Technology
 
@@ -38,7 +50,8 @@ All art is procedurally generated at edit time by C# editor scripts — there ar
 
 ## Design and plan documents
 
-- [Voxel meteors design spec](docs/superpowers/specs/2026-04-10-voxel-meteors-design.md) — current voxel destruction model
+- [Upgrades expansion plan](docs/superpowers/plans/2026-04-10-upgrades-expansion.md) — 6 stats across Launcher/Missile categories, homing, rotation speed
+- [Voxel meteors design spec](docs/superpowers/specs/2026-04-10-voxel-meteors-design.md) — voxel destruction model
 - [Voxel meteors implementation plan](docs/superpowers/plans/2026-04-10-voxel-meteors.md) — task-by-task breakdown
 - [MVP design spec](docs/superpowers/specs/2026-04-10-meteor-idle-mvp-design.md) — original smooth-sprite MVP design (superseded by the voxel spec)
 
