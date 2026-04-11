@@ -4,13 +4,15 @@ Working guidance for Claude Code sessions in this repo.
 
 ## What this is
 
-A 2D Unity 6 idle game. Voxel meteors fall, a turret shoots them, destroyed voxels pay $1 each, money buys upgrades. Desktop/laptop target, landscape 16:9. Early development — single base, no persistence, no audio.
+A 2D Unity 6 idle game. Voxel meteors fall; up to 3 base slots along the bottom auto-fire weapons that destroy meteor voxels. Destroyed voxels pay $1 each; money buys per-weapon upgrades. Two weapon types today (Missile and Railgun). Desktop/laptop target, landscape 16:9. Early development — no persistence, no audio.
 
 ## Tech stack
 
 - Unity **6000.4.1f1** (pinned, exact version)
 - 2D URP, new Input System, TextMeshPro
-- C# game code lives in the `MeteorIdle` assembly (`Assets/Scripts/MeteorIdle.asmdef`); EditMode tests in `MeteorIdle.Tests.Editor` (`Assets/Tests/EditMode/`)
+- C# game code lives in the `MeteorIdle` assembly (`Assets/Scripts/MeteorIdle.asmdef`).
+- EditMode tests in `MeteorIdle.Tests.Editor` (`Assets/Tests/EditMode/`).
+- PlayMode tests in `MeteorIdle.Tests.PlayMode` (`Assets/Tests/PlayMode/`).
 - Unity MCP (`mcpforunity://` resources, `mcp__UnityMCP__*` tools) drives everything in the editor
 
 ## Project layout
@@ -18,36 +20,66 @@ A 2D Unity 6 idle game. Voxel meteors fall, a turret shoots them, destroyed voxe
 ```
 Assets/
   Art/                          procedurally-generated PNGs + materials
-  Data/TurretStats.asset        ScriptableObject with upgrade stats
-  Prefabs/                      Meteor, Missile, particle bursts, UI
+  Data/
+    TurretStats.asset           Missile turret upgrade stats (6 stats, 2 categories)
+    RailgunStats.asset          Railgun turret upgrade stats (5 stats, single column)
+  Prefabs/
+    BaseSlot.prefab             slot root with two weapon-child siblings (see UI section)
+    Meteor.prefab               voxel meteor on the Meteors physics layer
+    Missile.prefab              homing missile with Rigidbody2D + trigger collider
+    RailgunRound.prefab         visual-only railgun bullet (no collider, per-frame raycast)
+    RailgunStreak.prefab        stretched-sprite trailing line VFX
+    Build/Upgrade button prefabs, particle prefabs, FloatingText
   Scenes/Game.unity             the one scene
   Scripts/
-    Meteor.cs                   voxel grid + ApplyBlast + voxel helpers
+    MeteorIdle.asmdef           game code assembly definition
+    Meteor.cs                   voxel grid + ApplyBlast (circular) + ApplyTunnel (line)
     VoxelMeteorGenerator.cs     static generator: seed → bool[10,10] + Texture2D
     Missile.cs                  trigger-based collision, target-voxel homing
-    Turret.cs                   targets nearest meteor, picks target voxel, fires
+    TurretBase.cs               abstract base: targeting, rotation, reload timer
+    MissileTurret.cs            TurretBase subclass; missile pool + fire
+    RailgunTurret.cs            TurretBase subclass; charge color animation + fire
+    BaseSlot.cs                 slot root with two weapon-child refs + per-weapon panel routing
+    SlotManager.cs              spawns 3 slots, per-weapon NextBuildCost(WeaponType)
     MeteorSpawner.cs            timer + pool, calm starting cadence
     GameManager.cs              money singleton + OnMoneyChanged event, SetMoney for debug
     SimplePool.cs               generic MonoBehaviour pool
     FloatingText.cs             world-space "+$N" tween
-    Data/TurretStats.cs         ScriptableObject with 6 stats across 2 categories
+    Weapons/
+      WeaponType.cs             enum { Missile, Railgun }
+      RailgunRound.cs           per-frame Physics2D.RaycastAll on Meteors layer
+      RailgunStreak.cs          stretched-sprite line VFX, 4-step alpha fade
+    Data/
+      TurretStats.cs            6 missile stats across Launcher + Missile categories
+      RailgunStats.cs           5 railgun stats: FireRate, RotationSpeed, Speed, Weight, Caliber
     Debug/DebugOverlay.cs       editor-only overlay, backquote toggle, pauses via timeScale
     UI/
       MoneyDisplay.cs           top-center TMP label, listens to money
-      UpgradePanel.cs           centered CanvasGroup, two-column layout
-      UpgradeButton.cs          one per stat
-      BuildSlotPanel.cs         modal for buying a new base slot
+      MissileUpgradePanel.cs    missile stats, two-column Launcher/Missile layout
+      RailgunUpgradePanel.cs    railgun stats, single column
+      UpgradeButton.cs          shared prefab; Bind() for missile, BindRailgun() for railgun
+      BuildSlotPanel.cs         modal for buying a new base slot (per-weapon costs)
       BuildWeaponButton.cs      one per weapon type in the build modal
-    MeteorIdle.asmdef           game code assembly definition
+      ModalClickCatcher.cs      click-outside-to-close behind any modal CanvasGroup
 Tests/
   EditMode/
     MeteorIdle.Tests.Editor.asmdef
     MeteorApplyBlastTests.cs    crater/walk-inward logic on the voxel grid
+    MeteorApplyTunnelTests.cs   line-walking voxel destruction for railgun
     MeteorVoxelApiTests.cs      IsVoxelPresent/GetVoxelWorldPosition/PickRandomPresentVoxel
     VoxelMeteorGeneratorTests.cs  determinism + aliveCount consistency
     GameManagerTests.cs         TrySpend/AddMoney/SetMoney + OnMoneyChanged
     TurretStatsTests.cs         NextCost/CurrentValue formulas, ApplyUpgrade
+    RailgunStatsTests.cs        same shape as TurretStatsTests but for RailgunStats
     SimplePoolTests.cs          prewarm/Get/Release/reuse cycle
+    TestHelpers.cs              reflection-invoked Awake/Update for EditMode tests
+  PlayMode/
+    MeteorIdle.Tests.PlayMode.asmdef
+    PlayModeTestFixture.cs      shared spawn helpers for meteor/missile/railgun
+    ExistingFeatureSmokeTests.cs  missile collision, meteor fade, spawner pooling
+    RailgunPlayModeTests.cs     fires-into-meteor, pierces-two, layer-mask filter
+tools/
+  identity-scrub.py             pre-commit identity-leak check (see "Identity scrub" section)
 docs/superpowers/
   specs/                        design docs (spec per iteration)
   plans/                        implementation plans (task-by-task)
@@ -116,9 +148,18 @@ Each meteor owns a `bool[10,10]` voxel grid and a 150×150 `Texture2D`. On missi
 - `Meteor.IsVoxelPresent(int gx, int gy)` — bounds-checked grid lookup.
 - `Meteor.PickRandomPresentVoxel(out int gx, out int gy)` — picks a random live cell. Computes a fresh local live-count inside rather than trusting the cached `aliveCount` — defensive against any future drift.
 
-## Stats, upgrades, and the missile loop
+## Weapons, slots, and upgrades
 
-`TurretStats` (`Assets/Data/TurretStats.asset`) is a ScriptableObject with **6 stats across 2 categories**:
+The game has **3 base slots** along the bottom of the screen, equidistant. The center slot starts pre-built with a Missile turret; the two side slots start empty (showing a `+` icon) and can be purchased through the **build modal**. There are two weapon types — Missile and Railgun — and the player picks which weapon to install when buying a slot. Each weapon has its own stats asset and its own upgrade panel.
+
+**Architecture overview:**
+- `TurretBase` is an abstract MonoBehaviour that owns the shared targeting/rotation/reload-timer logic. `MissileTurret` and `RailgunTurret` are concrete subclasses that implement `Fire(target)` and the `FireRate`/`RotationSpeed` abstract properties.
+- `BaseSlot.prefab` has two sibling weapon children — `MissileWeapon` and `RailgunWeapon` — each containing one of the concrete turret components plus its own barrel and muzzle. Both children start inactive; `BaseSlot.Build(weapon)` activates the matching one.
+- `SlotManager` instantiates the slot prefab N times, hands each spawned slot a reference to the right upgrade panel for both weapons (`SetMissileUpgradePanel` + `SetRailgunUpgradePanel`), and routes empty-slot clicks to `BuildSlotPanel`.
+
+### Missile (`TurretStats`, `Assets/Data/TurretStats.asset`)
+
+6 stats across 2 categories:
 
 **Launcher:**
 - `FireRate` — shots per second. Base 0.5, +0.15 per level.
@@ -133,17 +174,53 @@ Each meteor owns a `bool[10,10]` voxel grid and a 150×150 `Texture2D`. On missi
 **Accuracy has been removed.** An earlier iteration had an "Accuracy" stat that applied a random launch wobble. That was dropped when Homing was added — missiles now fire straight at a specific target voxel every time, and Homing compensates for meteor drift mid-flight.
 
 **Homing details:**
-- On `Turret.Fire`, the turret calls `target.PickRandomPresentVoxel()` to select a specific cell on the target meteor. If the pick succeeds, it passes the `(target, gx, gy, homingDegPerSec)` tuple to `Missile.Launch`. **If the pick fails (meteor died between `FindTarget` and `Fire`), the missile gets `null` as its homing target** and flies as a dumb projectile.
+- On `MissileTurret.Fire`, the turret calls `target.PickRandomPresentVoxel()` to select a specific cell on the target meteor. If the pick succeeds, it passes the `(target, gx, gy, homingDegPerSec)` tuple to `Missile.Launch`. **If the pick fails (meteor died between `FindTarget` and `Fire`), the missile gets `null` as its homing target** and flies as a dumb projectile.
 - `Missile.Update` steers velocity toward `target.GetVoxelWorldPosition(gx, gy)` using `Vector3.RotateTowards`, preserving speed magnitude. Guarded by `target != null && target.IsAlive && target.IsVoxelPresent(gx, gy)` — if any of those fail, the missile flies straight from that point.
-- Collision behavior is unchanged: `OnTriggerEnter2D` → `ApplyBlast` at the missile's current position. The homing target is a steering hint, not a collision filter. Missiles explode on any meteor they touch along the way.
+- Collision behavior: `OnTriggerEnter2D` → `Meteor.ApplyBlast` at the missile's current position. The homing target is a steering hint, not a collision filter. Missiles explode on any meteor they touch along the way.
+
+### Railgun (`RailgunStats`, `Assets/Data/RailgunStats.asset`)
+
+5 stats, single column. Slow-firing straight-line piercing tunneler — opposite playstyle to the missile.
+
+- `FireRate` — shots per second. Base 0.2 (5s between shots), +0.05 per level. Doubles as the barrel charge time.
+- `RotationSpeed` — degrees/sec for barrel aim. Base 20, +12 per level.
+- `Speed` — projectile world velocity. Base 6 world/sec, +3 per level. At base it's clearly visible; at high levels it's near-instant.
+- `Weight` — depth budget in voxels. Base 4, +2 per level. Each live voxel destroyed consumes 1 from the budget; empty voxels are free.
+- `Caliber` — tunnel width perpendicular to travel. Base 1 cell wide; +1/level up to 5 cells wide at level 2 (3-step discrete).
+
+**Tunneling model (`Meteor.ApplyTunnel`):**
+- The round walks the meteor's voxel grid along its world direction in half-cell steps.
+- At each step it destroys all live voxels within a perpendicular band of width `caliberWidth` (1 → 1 cell, 2 → 3 cells, 3 → 5 cells).
+- **Empty voxels are free** — they don't consume `Weight` budget. This is what lets the round glide through holes carved by earlier shots.
+- Stops when budget hits zero OR the ray exits the grid. Returns the voxels consumed and the world-space exit point (used by `RailgunRound` to start tunneling the next meteor on a piercing shot).
+
+**Round model (`RailgunRound`):**
+- Visual-only GameObject — **no Rigidbody2D, no Collider2D**. Damage is resolved via per-frame `Physics2D.RaycastAll` against the `Meteors` physics layer.
+- Each frame the round advances by `speed * deltaTime`, and that exact same delta is the raycast distance — manual continuous collision that works at any speed (base 6 to upgraded ~36 world/sec) without tunneling between physics ticks.
+- The `Meteors` layer mask is critical: missiles are on the Default layer and are never returned by the raycast, so railgun shots can't accidentally damage missiles in their path.
+- A `HashSet<Meteor> alreadyTunneled` prevents the same meteor being processed twice in one round's lifetime (curved collider edge case).
+- On budget exhausted OR offscreen, spawns a `RailgunStreak` (stretched sprite, not a `LineRenderer` — voxel aesthetic forbids smooth lines) and destroys itself.
+
+**Charge animation:** the `RailgunTurret` overrides `Update` to advance a charge timer up to `1/FireRate` seconds and step the barrel sprite color through 4 quantized stops (white → `#CEE8FE` → `#A8D6FE` → `#93DAFE`). Fires when fully charged AND aligned with the target. Snap back to dead white instantly on fire. No smooth `Color.Lerp` — quantized steps to match the voxel aesthetic.
+
+### `Meteors` physics layer
+
+Added at slot 8 via `manage_editor add_layer`. Assigned to the `Meteor.prefab` root GameObject. The `RailgunRound` raycasts against this layer only, which is how it filters out missiles, turret bases, and UI colliders. Unity's default Physics2D collision matrix allows all-vs-all, so missile-meteor trigger collisions still work unchanged.
+
+**When spawning a meteor in test code:** assign the `Meteors` layer to the GameObject before calling `Spawn`. The `PlayModeTestFixture.SpawnTestMeteor` helper does this automatically — without it, railgun raycasts wouldn't find the test meteor.
 
 ## UI layout (current)
 
 - **Money display:** top-center of the Canvas, TMP `$N` with `horizontalAlignment = Center`.
-- **Upgrade panel:** centered on screen (anchor/pivot `(0.5, 0.5)`, position `(0, 0)`, size `520×460`). Starts hidden via `CanvasGroup alpha=0`; clicking `Base_01` calls `BaseClickHandler.OnPointerClick` which toggles the CanvasGroup. The GameObject stays active so `Start()` can create buttons — do not `SetActive(false)` it.
-- **Upgrade panel internal hierarchy:** `UPGRADES` title → horizontal `Columns` container → `LauncherColumn` + `MissileColumn`, each with a bold blue header (`LAUNCHER` / `MISSILE`) and a `VerticalLayoutGroup` of upgrade buttons. `UpgradePanel.cs` branches each stat into the correct column via `IsLauncherStat(StatId)`.
-- **Upgrade button:** `UpgradeButton` prefab, 230×68, label fontSize 20. Text format: `{name}\nLvl {lvl} — ${cost}`.
-- **Click detection on the turret base** requires `Physics2DRaycaster` on `Main Camera` + `Collider2D` on `Base_01` + `IPointerClickHandler` on `BaseClickHandler`. `OnMouseDown` does not fire because the project is on the new Input System only (`activeInputHandler: 1`).
+- **Two upgrade panels** (one per weapon, contextual to the clicked turret):
+  - `UpgradePanel` (the GameObject for the missile panel — keeps its old name; the C# class is now `MissileUpgradePanel`). 520×460 centered, two-column layout: `LAUNCHER` column (FireRate, RotationSpeed) + `MISSILE` column (MissileSpeed, Damage, BlastRadius, Homing).
+  - `RailgunUpgradePanel`. 280×460 centered, single-column layout for the 5 railgun stats. Title "RAILGUN" in `#93DAFE`.
+- Both panels start hidden via `CanvasGroup alpha=0`. The GameObjects stay active so `Start()` can create buttons — do not `SetActive(false)` them.
+- **`BaseSlot.OnPointerClick`** routes to the right panel based on `BuiltWeapon`. Clicking a built turret toggles the matching panel's CanvasGroup. Clicking an empty slot fires `EmptyClicked` which `SlotManager` routes to `BuildSlotPanel`.
+- **Click-outside-to-close**: each upgrade panel has a sibling `UpgradeClickCatcher*` (full-screen transparent `Image` with `ModalClickCatcher`) rendered behind it. The catcher's `raycastTarget` is gated by `LateUpdate` to the panel's alpha, so it only catches clicks while the modal is actually open. Clicking the catcher closes the panel.
+- **Build modal** (`BuildSlotPanel`): centered modal with one button per `WeaponType` in its `weapons` array. Each button shows the weapon-specific cost via `SlotManager.NextBuildCost(WeaponType)`. Has its own X close button + Escape key + click-outside-to-close.
+- **Upgrade button:** `UpgradeButton` prefab, 230×68, label fontSize 20. Text format: `{name}\nLvl {lvl} — ${cost}`. Single prefab serves both weapons via `Bind()` (missile, takes a `TurretStats` + `StatId`) or `BindRailgun()` (railgun, takes a `RailgunStats` + `RailgunStatId`). Internal branching on which stats ref is set.
+- **Click detection on the turret base** requires `Physics2DRaycaster` on `Main Camera` + `Collider2D` on the slot root + `IPointerClickHandler` on `BaseSlot`. `OnMouseDown` does not fire because the project is on the new Input System only (`activeInputHandler: 1`).
 
 ## Spawning
 
@@ -186,37 +263,86 @@ On first use in a fresh clone, the script exits with code 2 and instructions. Po
 
 ## Testing
 
-EditMode tests live in `Assets/Tests/EditMode/` inside the `MeteorIdle.Tests.Editor` assembly, which references the `MeteorIdle` game assembly. The suite targets **unique game logic** only — not UI wiring, not physics collision (that's manual play-mode work), not trivial property accessors.
+Two test assemblies in this project:
 
-**What is tested:**
+- **`MeteorIdle.Tests.Editor`** (`Assets/Tests/EditMode/`) — runs without entering play mode. Fast (~2 seconds for the whole suite). Targets pure game logic that doesn't need physics, time, or scene loading. **59 tests today.**
+- **`MeteorIdle.Tests.PlayMode`** (`Assets/Tests/PlayMode/`) — runs inside a temporary play session. Slower (~13 seconds). Targets behavior that depends on real `Physics2D`, `Time.deltaTime`, or live `MonoBehaviour` lifecycles. **6 tests today.**
+
+Run via `mcp__UnityMCP__run_tests` with `mode: "EditMode"` or `"PlayMode"` (and `assembly_names` to target one). Both modes must be green before promoting a branch to `main`.
+
+### EditMode coverage
+
 - `Meteor.ApplyBlast` — walk-inward crater logic, rim erosion, tunnel-through case, direct-hit case, aliveCount bookkeeping
-- `Meteor.IsVoxelPresent` / `GetVoxelWorldPosition` / `PickRandomPresentVoxel` — homing API
-- `VoxelMeteorGenerator.Generate` — determinism (same seed → same grid), `aliveCount` matches grid truth, shape fits within the 10×10 grid
+- `Meteor.ApplyTunnel` — line-walking voxel destruction, empty-cells-are-free, budget cap, exit-point reporting, caliber 1/2/3 widths, diagonal direction
+- `Meteor.IsVoxelPresent` / `GetVoxelWorldPosition` / `PickRandomPresentVoxel` — homing/targeting API
+- `VoxelMeteorGenerator.Generate` — determinism (same seed → same grid), `aliveCount` matches grid truth, non-trivial shape range, texture dimensions
 - `GameManager.TrySpend` / `AddMoney` / `SetMoney` plus `OnMoneyChanged` event firing
-- `TurretStats.NextCost` / `CurrentValue` formulas and `ApplyUpgrade` level tracking
-- `SimplePool<T>` prewarm/Get/Release cycle and active-list bookkeeping
+- `TurretStats` and `RailgunStats` — `NextCost` / `CurrentValue` formulas, `ApplyUpgrade` level tracking, single-stat isolation, `ResetRuntime`
+- `SimplePool<T>` — prewarm/Get/Release cycle and active-list bookkeeping
 
-**What is *not* tested (and why):**
-- `Turret`, `Missile`, `MeteorSpawner` — needs physics + time + pooled instances. Verify by play mode.
-- `SlotManager` — needs scene references to a real BaseSlot prefab and live Canvas. Verify by play mode.
-- All `UI/*` panels and buttons — layout is visual, can only be judged in-editor with the panel visible.
+### PlayMode coverage
+
+- **Existing-feature smoke tests** (`ExistingFeatureSmokeTests.cs`):
+  - `Missile_LaunchedAtMeteor_Collides_DealsDamage` — Rigidbody2D → OnTriggerEnter2D → ApplyBlast chain
+  - `Meteor_FallsAndFadesBelowThreshold_BecomesUntargetable` — fade logic in `Meteor.Update` over real time
+  - `MeteorSpawner_SpawnsPooledMeteors_OverTime` — spawner cadence + pool prewarm
+- **Railgun chain tests** (`RailgunPlayModeTests.cs`):
+  - `RailgunRound_FiresIntoMeteor_DealsDamage` — per-frame raycast → `ApplyTunnel` end-to-end
+  - `RailgunRound_PiercesTwoStackedMeteors` — `Weight` budget carries across multiple meteors in a line
+  - `RailgunRound_LayerMask_IgnoresMissilesInPath` — `Meteors` layer filter excludes missile colliders
+
+### What is *not* tested
+
+- `MissileTurret` and `RailgunTurret` `Update` loops — need real time + scene state. Verify by play mode.
+- `SlotManager.Start` slot spawning — needs scene refs. Verify by play mode.
+- All `UI/*` panel layouts — visual, can only be judged in-editor.
 - `DebugOverlay` — editor-only, no runtime logic worth asserting.
+- `RailgunStreak` fade animation — visual, eyeball-test in play mode.
 
-**Running tests from MCP:** `mcp__UnityMCP__run_tests` with `mode: "EditMode"`. Each test is a single `[Test]` method under `MeteorIdle.Tests.Editor`. Helper instantiation pattern (so tests don't need a loaded scene):
+### EditMode helper pattern
 
 ```csharp
 var go = new GameObject("TestMeteor", typeof(SpriteRenderer), typeof(CircleCollider2D), typeof(Meteor));
 var m = go.GetComponent<Meteor>();
+TestHelpers.InvokeAwake(m);  // Awake doesn't reliably fire in EditMode tests; reflect-invoke it
 m.Spawn(null, Vector3.zero, seed: 42, sizeScale: 1f);
 // ... assertions ...
 Object.DestroyImmediate(go);  // releases the texture the meteor allocated
 ```
 
-**Before promoting a branch to `main`:** run the test suite AND play-test the change in the editor. Tests alone are not sufficient — they don't catch scene drift, panel-click routing, UI layout, or timing issues.
+`TestHelpers.InvokeAwake` and `TestHelpers.InvokeUpdate` are reflection-based shims because Unity doesn't reliably fire those methods on components added via `new GameObject(typeof(T))` in EditMode tests.
+
+### PlayMode helper pattern
+
+```csharp
+[UnityTest]
+public IEnumerator MyTest()
+{
+    yield return SetupScene();
+    var meteor = SpawnTestMeteor(new Vector3(0f, 3f, 0f));
+    // ... do things ...
+    yield return new WaitForSeconds(0.5f);
+    Assert.Less(meteor.AliveVoxelCount, 65);
+    TeardownScene();
+}
+```
+
+Inherit from `PlayModeTestFixture`. `SpawnTestMeteor` automatically assigns the `Meteors` physics layer, `SpawnTestMissile` loads the missile prefab via `AssetDatabase`, `SpawnTestRailgunRound` loads + configures the railgun round prefab. `SpawnTestSpawner` creates an inactive GameObject, sets its prefab field via `SerializedObject`, then activates — necessary because `MeteorSpawner.Awake` prewarms the pool and would throw on a null prefab if the spawner were added the naive way.
+
+### Before promoting a branch to `main`
+
+1. Run **both** test suites (`mcp__UnityMCP__run_tests mode=EditMode` and `mode=PlayMode`).
+2. Run a manual play-mode session in the editor and verify the change end-to-end.
+3. Run `python3 tools/identity-scrub.py` against the staged diff (and again against the full branch range before push).
+4. Hand back to user for sign-off. Only after explicit approval, fast-forward `main` to the branch tip.
+
+Tests alone are not sufficient — they don't catch scene drift, panel-click routing, UI layout, or timing issues.
 
 ## Useful reference
 
 - Design specs and implementation plans live under `docs/superpowers/specs/` and `docs/superpowers/plans/`. The most recent iterations:
+  - [Railgun weapon design](docs/superpowers/specs/2026-04-10-railgun-weapon-design.md) — second weapon: tunneling straight-line piercer with charge animation, full architectural rationale for `TurretBase`/`MissileTurret`/`RailgunTurret` split, raycast-driven projectile model
+  - [Railgun implementation plan](docs/superpowers/plans/2026-04-10-railgun-weapon.md) — 13-phase task-by-task execution plan for the railgun
   - [Upgrades expansion plan](docs/superpowers/plans/2026-04-10-upgrades-expansion.md) — 6 stats across 2 categories, homing, rotation speed
   - [Voxel meteors design](docs/superpowers/specs/2026-04-10-voxel-meteors-design.md) — the current voxel destruction model
   - [Voxel meteors implementation plan](docs/superpowers/plans/2026-04-10-voxel-meteors.md) — task-by-task breakdown of the voxel work
