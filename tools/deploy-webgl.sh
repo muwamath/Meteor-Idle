@@ -17,6 +17,18 @@ if [[ ! -f "${BUILD_DIR}/index.html" ]]; then
     exit 1
 fi
 
+# Refuse to deploy a development build. tools/build-webgl-dev.sh writes a
+# .dev-build-marker sentinel into the dev output directory, and
+# tools/build-webgl.sh deletes any stale marker from build/WebGL/ on success,
+# so seeing one here means someone pointed deploy at a dev output directory
+# (or something weird happened). Either way — abort, don't ship.
+if [[ -f "${BUILD_DIR}/.dev-build-marker" ]]; then
+    echo "error: ${BUILD_DIR} contains a development build (.dev-build-marker sentinel found)." >&2
+    echo "       Development builds must not be deployed to gh-pages." >&2
+    echo "       Run tools/build-webgl.sh (prod, not dev) before deploying." >&2
+    exit 1
+fi
+
 # Refuse to deploy over uncommitted source changes — deploys must correspond to a committed state.
 if ! git diff --quiet -- Assets ProjectSettings || ! git diff --cached --quiet -- Assets ProjectSettings; then
     echo "error: uncommitted changes in Assets/ or ProjectSettings/. Commit first, then deploy." >&2

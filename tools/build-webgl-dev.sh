@@ -1,14 +1,20 @@
 #!/usr/bin/env bash
-# Build Meteor Idle for WebGL via headless Unity CLI.
-# Output: <repo>/build/WebGL/
+# Build Meteor Idle for WebGL as a development build.
+# Unity auto-defines DEVELOPMENT_BUILD which unlocks DebugOverlay and any
+# other debug-only surfaces wrapped in #if UNITY_EDITOR || DEVELOPMENT_BUILD.
+# Output: <repo>/build/WebGL-dev/
+#
+# Never deploy this directory to gh-pages — tools/deploy-webgl.sh aborts if
+# it finds a .dev-build-marker sentinel inside build/WebGL/, and this script
+# writes such a sentinel into build/WebGL-dev/ on success.
 
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 UNITY_VERSION="6000.4.1f1"
 UNITY_BIN="/Applications/Unity/Hub/Editor/${UNITY_VERSION}/Unity.app/Contents/MacOS/Unity"
-BUILD_DIR="${REPO_ROOT}/build/WebGL"
-LOG_FILE="${REPO_ROOT}/build/webgl-build.log"
+BUILD_DIR="${REPO_ROOT}/build/WebGL-dev"
+LOG_FILE="${REPO_ROOT}/build/webgl-dev-build.log"
 
 if [[ ! -x "${UNITY_BIN}" ]]; then
     echo "error: Unity ${UNITY_VERSION} not found at ${UNITY_BIN}" >&2
@@ -25,7 +31,7 @@ echo "==> Cleaning ${BUILD_DIR}"
 rm -rf "${BUILD_DIR}"
 mkdir -p "${REPO_ROOT}/build"
 
-echo "==> Running Unity headless build (log: ${LOG_FILE})"
+echo "==> Running Unity headless DEV build (log: ${LOG_FILE})"
 set +e
 "${UNITY_BIN}" \
     -batchmode \
@@ -33,7 +39,7 @@ set +e
     -quit \
     -projectPath "${REPO_ROOT}" \
     -buildTarget WebGL \
-    -executeMethod BuildScripts.BuildWebGL \
+    -executeMethod BuildScripts.BuildWebGLDev \
     -logFile "${LOG_FILE}"
 rc=$?
 set -e
@@ -49,12 +55,12 @@ if [[ ! -f "${BUILD_DIR}/index.html" ]]; then
     exit 1
 fi
 
-# Symmetric cleanup: if a previous run dropped a dev-build sentinel into
-# build/WebGL/ (shouldn't happen — dev builds live in build/WebGL-dev/ — but
-# belt and suspenders) make sure a fresh prod build never leaves one behind.
-# tools/deploy-webgl.sh aborts when it sees this file.
-rm -f "${BUILD_DIR}/.dev-build-marker"
+# Sentinel file — tools/deploy-webgl.sh checks for this inside build/WebGL/
+# and refuses to deploy if present. Living in build/WebGL-dev/ it also tags
+# this directory for any human reader wondering whether it's a dev or prod build.
+touch "${BUILD_DIR}/.dev-build-marker"
 
 SIZE=$(du -sh "${BUILD_DIR}" | awk '{print $1}')
-echo "==> WebGL build OK: ${BUILD_DIR} (${SIZE})"
-echo "    Serve locally with: python3 -m http.server 8000 --directory \"${BUILD_DIR}\""
+echo "==> WebGL DEV build OK: ${BUILD_DIR} (${SIZE})"
+echo "    Serve locally with: tools/serve-webgl-dev.sh"
+echo "    (Or: python3 -m http.server 8000 --directory \"${BUILD_DIR}\")"
