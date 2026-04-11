@@ -48,7 +48,12 @@ public class MissileTurret : TurretBase
         int gx = 0, gy = 0;
         bool hasVoxel = target.PickRandomPresentVoxel(out gx, out gy);
 
-        float speed = statsInstance.missileSpeed.CurrentValue;
+        // Single source of truth: the ProjectileSpeed getter. Both the lead
+        // solver call and the missile's launch velocity magnitude must read
+        // from the same value, or the missile will aim at a point it can't
+        // actually reach at the assumed speed. Do not read statsInstance
+        // directly here.
+        float speed = ProjectileSpeed;
         Vector2 dir;
         if (hasVoxel)
         {

@@ -100,6 +100,13 @@ public class RailgunTurret : TurretBase
 
         Vector3 spawnPos = muzzle != null ? muzzle.position : barrel.position;
 
+        // Single source of truth for projectile speed: the ProjectileSpeed
+        // getter. Both the lead-aim solver call and the round's configured
+        // flight speed must come from the same value or the round will aim
+        // at a point it can't actually reach at the assumed speed — over-
+        // or under-lead. Do not read statsInstance directly here.
+        float projectileSpeed = ProjectileSpeed;
+
         // Recompute the lead point at fire time — the barrel may have just
         // finished rotating this frame, and the target may have moved since
         // the Update-step aim. Using the fresh value keeps fire direction and
@@ -108,7 +115,7 @@ public class RailgunTurret : TurretBase
             (Vector2)spawnPos,
             (Vector2)target.transform.position,
             target.Velocity,
-            statsInstance.speed.CurrentValue);
+            projectileSpeed);
         Vector2 dir2 = (leadPoint - (Vector2)spawnPos).normalized;
         if (dir2.sqrMagnitude < 0.0001f) dir2 = (Vector2)barrel.up;
         Vector3 dir = new Vector3(dir2.x, dir2.y, 0f);
@@ -117,7 +124,7 @@ public class RailgunTurret : TurretBase
         round.Configure(
             spawnPos: spawnPos,
             dir: dir,
-            speed: statsInstance.speed.CurrentValue,
+            speed: projectileSpeed,
             weight: Mathf.RoundToInt(statsInstance.weight.CurrentValue),
             caliber: Mathf.RoundToInt(statsInstance.caliber.CurrentValue));
 
