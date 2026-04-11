@@ -46,6 +46,7 @@ sysinfo.txt
 *.unitypackage
 *.app
 crashlytics-build.properties
+mono_crash.*.json
 
 # === Dev scratch ===
 Assets/Screenshots/
