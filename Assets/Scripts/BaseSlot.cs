@@ -8,7 +8,7 @@ public class BaseSlot : MonoBehaviour, IPointerClickHandler
     [SerializeField] private SpriteRenderer turretBaseSr;
     [SerializeField] private Transform barrel;
     [SerializeField] private SpriteRenderer plusIconSr;
-    [SerializeField] private Turret turret;
+    [SerializeField] private TurretBase turret;
     [SerializeField] private CanvasGroup upgradePanel;
 
     public bool IsBuilt { get; private set; }

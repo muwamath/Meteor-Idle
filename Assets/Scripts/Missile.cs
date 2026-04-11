@@ -12,7 +12,7 @@ public class Missile : MonoBehaviour
     private float impactRadius;
     private float blastRadius;
     private float despawnAt;
-    private Turret owner;
+    private MissileTurret owner;
 
     // Homing state
     private Meteor homingTarget;
@@ -30,7 +30,7 @@ public class Missile : MonoBehaviour
     }
 
     public void Launch(
-        Turret turret,
+        MissileTurret turret,
         Vector3 position,
         Vector2 velocity,
         float damageStat,

@@ -12,7 +12,7 @@ GameObject:
   - component: {fileID: 4041244208911440726}
   - component: {fileID: 6513036075128405329}
   - component: {fileID: 1207769522927643998}
-  m_Layer: 0
+  m_Layer: 8
   m_Name: Meteor
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -145,4 +145,6 @@ MonoBehaviour:
   fallSpeedMax: 0.67
   driftMax: 0.4
   groundY: -8.7
+  fadeStartY: -7.88
+  fadeDuration: 0.5
   voxelChunkPrefab: {fileID: 4872757474425155906, guid: 2f8ec547c3e534e389bc9a752d9377fe, type: 3}

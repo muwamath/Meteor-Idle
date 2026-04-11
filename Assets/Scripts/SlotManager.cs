@@ -28,7 +28,7 @@ public class SlotManager : MonoBehaviour
             var pos = new Vector3(startX + i * slotSpacing, slotY, 0f);
             var slot = Instantiate(slotPrefab, pos, Quaternion.identity, transform);
 
-            var t = slot.GetComponent<Turret>();
+            var t = slot.GetComponent<TurretBase>();
             if (t != null) t.SetRuntimeRefs(meteorSpawner);
             slot.SetUpgradePanel(upgradePanel);
             slot.EmptyClicked += OpenBuildPanel;
