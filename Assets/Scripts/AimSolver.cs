@@ -14,6 +14,34 @@ public static class AimSolver
         Vector2 targetVelocity,
         float projectileSpeed)
     {
-        return targetPos;
+        Vector2 d = targetPos - shooterPos;
+        float a = Vector2.Dot(targetVelocity, targetVelocity) - projectileSpeed * projectileSpeed;
+        float b = 2f * Vector2.Dot(d, targetVelocity);
+        float c = Vector2.Dot(d, d);
+
+        float t;
+        const float eps = 1e-6f;
+        if (Mathf.Abs(a) < eps)
+        {
+            // Degenerate: target moving at exactly projectile speed. Linear solve.
+            if (b >= -eps) return targetPos; // opening trajectory, no intercept
+            t = -c / b;
+        }
+        else
+        {
+            float disc = b * b - 4f * a * c;
+            if (disc < 0f) return targetPos;
+            float sqrt = Mathf.Sqrt(disc);
+            float t1 = (-b - sqrt) / (2f * a);
+            float t2 = (-b + sqrt) / (2f * a);
+            // Pick smallest positive root. Both can be positive when a < 0
+            // (projectile faster than target); t1 is usually smaller.
+            if (t1 > 0f && t2 > 0f) t = Mathf.Min(t1, t2);
+            else if (t1 > 0f)       t = t1;
+            else if (t2 > 0f)       t = t2;
+            else                    return targetPos;
+        }
+
+        return targetPos + targetVelocity * t;
     }
 }
