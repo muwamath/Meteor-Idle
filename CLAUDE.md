@@ -86,10 +86,12 @@ Tests/
     FloatingTextTests.cs        rise, alpha fade, auto-destruction
 tools/
   identity-scrub.py             pre-commit identity-leak check (see "Identity scrub" section)
-  build-webgl.sh                headless Unity CLI wrapper: BuildScripts.BuildWebGL -> build/WebGL/
-  deploy-webgl.sh               rsyncs build/WebGL/ to the gh-pages worktree, scrubs, commits
-Assets/Editor/BuildScripts.cs   Editor-side BuildWebGL entry point (invoked via -executeMethod)
-build/                          gitignored Unity build output; WebGL lands under build/WebGL/
+  build-webgl.sh                headless Unity CLI wrapper: BuildScripts.BuildWebGL -> build/WebGL/ (prod)
+  build-webgl-dev.sh            same, DEVELOPMENT_BUILD flavor -> build/WebGL-dev/ (writes .dev-build-marker sentinel)
+  serve-webgl-dev.sh            python http.server on :8000 serving build/WebGL-dev/
+  deploy-webgl.sh               rsyncs build/WebGL/ to the gh-pages worktree, scrubs, commits (refuses if sentinel found)
+Assets/Editor/BuildScripts.cs   Editor-side BuildWebGL + BuildWebGLDev entry points (invoked via -executeMethod)
+build/                          gitignored Unity build output; WebGL lands under build/WebGL/ (prod) or build/WebGL-dev/ (dev)
 docs/superpowers/
   specs/                        design docs (spec per iteration)
   plans/                        implementation plans (task-by-task)
@@ -97,9 +99,11 @@ docs/superpowers/
 
 ## Conventions you must follow
 
-**Prefer EditMode unit tests for pure logic; manual play-mode verification is required before anything reaches remote `main`.** Tests live in `Assets/Tests/EditMode/`. They are fast (a few ms each), run without entering play mode, and have caught real bugs in `Meteor.ApplyBlast`. When you add or change logic in one of the tested modules (`Meteor`, `VoxelMeteorGenerator`, `GameManager`, `TurretStats`, `SimplePool`), update or add a test in the same change. Run the suite via `mcp__UnityMCP__run_tests` (or Window → General → Test Runner in the editor) and expect zero failures before committing. Do not push to `origin/main` without also having play-tested the change end-to-end in the editor — tests verify individual modules, not feel or scene wiring.
+**Prefer EditMode unit tests for pure logic; final manual verification runs against a local WebGL dev build, not Unity Editor play mode.** Tests live in `Assets/Tests/EditMode/`. They are fast (a few ms each), run without entering play mode, and have caught real bugs in `Meteor.ApplyBlast`. When you add or change logic in one of the tested modules (`Meteor`, `VoxelMeteorGenerator`, `GameManager`, `TurretStats`, `SimplePool`), update or add a test in the same change. Run the suite via `mcp__UnityMCP__run_tests` (or Window → General → Test Runner in the editor) and expect zero failures before committing. Do not push to `origin/main` without also having verified the change end-to-end via a local WebGL dev build — the editor doesn't run the same code path players will see (input handling, loader, compression, framerate all differ).
 
-The manual verification loop (use for anything scene- or UI-related, and as the final check before promoting a branch):
+**Editor play mode is still useful for fast iterative debugging** during active development. It's just not the final gate. The final gate — the last check before sign-off, merge, or push — is the local WebGL dev build.
+
+The fast iterative loop (in-editor, during development):
 1. Edit C# / mutate via `execute_code`
 2. `refresh_unity` (`scope=scripts` or `all`, `compile=request`)
 3. `read_console` — expect zero errors
@@ -108,6 +112,18 @@ The manual verification loop (use for anything scene- or UI-related, and as the 
 6. Wait briefly, then `manage_camera screenshot include_image=true`
 7. `read_console` again
 8. `manage_editor stop`
+
+The final verification loop (local WebGL dev build, run once per branch before handing back to the user):
+1. Close the Unity Editor (`tools/build-webgl-dev.sh` refuses to run while the project is locked).
+2. Run `tools/build-webgl-dev.sh` — produces `build/WebGL-dev/` with `DEVELOPMENT_BUILD` defined, which unlocks `DebugOverlay` and any other `#if UNITY_EDITOR || DEVELOPMENT_BUILD`-gated debug surfaces.
+3. Run `tools/serve-webgl-dev.sh` (foreground, Ctrl-C to stop; or background via `run_in_background: true` when invoked from Claude).
+4. Navigate to `http://localhost:8000/` via `chrome-devtools-mcp` (`new_page` → `navigate_page` → `wait_for` the Unity loader → `take_screenshot`).
+5. Exercise the change: interact with the game, press `` ` `` to confirm the debug overlay is present, watch the feature in action.
+6. `list_console_messages` — expect zero JS errors or runtime exceptions from Unity's loader.
+7. Close the tab (`close_page`) per the chrome-devtools-mcp hygiene rule.
+8. Stop the serve process.
+
+Tests catch logic regressions; the WebGL dev verify catches everything else (scene drift, UI layout, loader, input handling, frame timing).
 
 **Procedural art only.** Every `.png` in `Assets/Art/` is generated by an `execute_code` editor script that calls `Texture2D.EncodeToPNG()` and writes it to disk. Do not author bitmaps in external tools. The voxel aesthetic comes from per-pixel `SetPixel` calls with 1-pixel dark edges and ~20% brighten highlights.
 
@@ -277,9 +293,11 @@ The game ships as a WebGL build hosted on `gh-pages` → <https://muwamath.githu
 
 ### Pipeline
 
-1. **`tools/build-webgl.sh`** — Unity CLI wrapper that runs `Unity -batchmode -nographics -quit -projectPath … -buildTarget WebGL -executeMethod BuildScripts.BuildWebGL`. Deletes `build/WebGL/` first, writes Unity's log to `build/webgl-build.log`, fails loudly if Unity isn't installed or the build exits non-zero. **Refuses to run while the Unity Editor has the project open** because the editor holds an exclusive lock — close Unity before calling this script.
-2. **`Assets/Editor/BuildScripts.cs`** — the `BuildScripts.BuildWebGL` editor method invoked by `-executeMethod`. Hardcodes `Assets/Scenes/Game.unity` as the only scene and `build/WebGL` as the output path. Calls `EditorApplication.Exit(1)` on `BuildResult != Succeeded` so the shell wrapper can detect failure.
-3. **`tools/deploy-webgl.sh`** — after a successful build, rsyncs `build/WebGL/` into a git worktree at `../Meteor-Idle-gh-pages` on the `gh-pages` branch. Writes `.nojekyll` so Pages doesn't filter the `Build/` subdir. Stages and commits, but **does not push** — it prints the exact `git push` command for manual review. Refuses to run if the build output is missing, if the patterns file is missing, if there are uncommitted changes in `Assets/` or `ProjectSettings/`, or if the identity scrub finds even a single match.
+1. **`tools/build-webgl.sh`** — Unity CLI wrapper that runs `Unity -batchmode -nographics -quit -projectPath … -buildTarget WebGL -executeMethod BuildScripts.BuildWebGL`. Deletes `build/WebGL/` first, writes Unity's log to `build/webgl-build.log`, fails loudly if Unity isn't installed or the build exits non-zero. **Refuses to run while the Unity Editor has the project open** because the editor holds an exclusive lock — close Unity before calling this script. On success, deletes any stale `.dev-build-marker` sentinel (see below) so the output is unambiguously prod.
+2. **`tools/build-webgl-dev.sh`** — the development-build variant. Same pipeline, but passes `BuildScripts.BuildWebGLDev` which sets `BuildOptions.Development` → Unity defines `DEVELOPMENT_BUILD` → `DebugOverlay` and any other `#if UNITY_EDITOR || DEVELOPMENT_BUILD`-wrapped debug surfaces are included. Output goes to `build/WebGL-dev/`. On success, **touches a `.dev-build-marker` sentinel** inside the output directory; this is how the deploy pipeline knows the build is dev and refuses to ship it.
+3. **`tools/serve-webgl-dev.sh`** — runs `python3 -m http.server 8000 --directory build/WebGL-dev/`. Checks the port is free first; fails loudly with the holding PID if busy. Override via `PORT=<n>`. Foreground by default; run in the background from Claude via `run_in_background: true`.
+4. **`Assets/Editor/BuildScripts.cs`** — contains `BuildWebGL` (prod) and `BuildWebGLDev` (dev). Both hardcode `Assets/Scenes/Game.unity` as the only scene and call `EditorApplication.Exit(1)` on failure so the shell wrappers can detect it.
+5. **`tools/deploy-webgl.sh`** — after a successful prod build, rsyncs `build/WebGL/` into a git worktree at `../Meteor-Idle-gh-pages` on the `gh-pages` branch. Writes `.nojekyll` so Pages doesn't filter the `Build/` subdir. Stages and commits, but **does not push** — it prints the exact `git push` command for manual review. Refuses to run if the build output is missing, **if `.dev-build-marker` is present in the build output** (hard dev-build gate), if the patterns file is missing, if there are uncommitted changes in `Assets/` or `ProjectSettings/`, or if the identity scrub finds even a single match.
 
 ### Player settings the pipeline depends on
 
@@ -389,10 +407,10 @@ Inherit from `PlayModeTestFixture`. `SpawnTestMeteor` automatically assigns the 
 ### Before promoting a branch to `main`
 
 1. Run **both** test suites (`mcp__UnityMCP__run_tests mode=EditMode` and `mode=PlayMode`).
-2. Run a manual play-mode session in the editor and verify the change end-to-end.
+2. **Verify via local WebGL dev build, not editor play mode.** Close Unity, run `tools/build-webgl-dev.sh`, run `tools/serve-webgl-dev.sh` (background), open `http://localhost:8000/` via `chrome-devtools-mcp`, exercise the change, check the devtools console for JS errors, take a screenshot, close the tab, stop the server. The debug overlay (` ` ` key) is available in dev builds for live inspection.
 3. Run `python3 tools/identity-scrub.py` against the staged diff (and again against the full branch range before push).
 4. Hand back to user for sign-off. Only after explicit approval, fast-forward `main` to the branch tip.
-5. **After fast-forwarding, produce and ship a fresh WebGL build.** Close the Unity Editor, then run `tools/build-webgl.sh` followed by `tools/deploy-webgl.sh`. Smoke-test the staged `gh-pages` worktree if the change touched anything user-visible, then `git -C ../Meteor-Idle-gh-pages push origin gh-pages`. Confirm <https://muwamath.github.io/Meteor-Idle/> is serving the new build before closing the loop.
+5. **After fast-forwarding, produce and ship a fresh prod WebGL build.** Still with Unity closed, run `tools/build-webgl.sh` (prod — this also clears any stale `.dev-build-marker`), then `tools/deploy-webgl.sh`. The deploy script refuses to run if it finds a dev-build sentinel, so a prod-build step is non-optional. Smoke-test the staged `gh-pages` worktree if the change touched anything user-visible, then `git -C ../Meteor-Idle-gh-pages push origin gh-pages`. Confirm <https://muwamath.github.io/Meteor-Idle/> is serving the new build before closing the loop.
 
 Tests alone are not sufficient — they don't catch scene drift, panel-click routing, UI layout, or timing issues.
 

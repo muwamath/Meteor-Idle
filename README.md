@@ -25,12 +25,14 @@ Early in development. **3 base slots, 2 weapons (Missile and Railgun)**, no pers
 
 ### Building and deploying the WebGL player
 
-The live build at <https://muwamath.github.io/Meteor-Idle/> is produced locally — no CI. Two scripts drive the pipeline, both in `tools/`:
+The live build at <https://muwamath.github.io/Meteor-Idle/> is produced locally — no CI. Four scripts drive the pipeline, all in `tools/`:
 
-- **`tools/build-webgl.sh`** — headless Unity build via `Unity -batchmode -executeMethod BuildScripts.BuildWebGL`. Writes to `build/WebGL/` (gitignored). Close the Unity Editor before running; the script refuses to start while the editor holds the project lock.
-- **`tools/deploy-webgl.sh`** — runs the identity scrub on the build output, `rsync`s it into a `gh-pages` linked worktree at `../Meteor-Idle-gh-pages`, writes `.nojekyll`, and makes a commit. The script does **not** push — it prints the exact `git push` command for manual review.
+- **`tools/build-webgl.sh`** — headless Unity prod build via `Unity -batchmode -executeMethod BuildScripts.BuildWebGL`. Writes to `build/WebGL/` (gitignored). Close the Unity Editor before running; the script refuses to start while the editor holds the project lock. On success, deletes any stale `.dev-build-marker` sentinel so the output is unambiguously deployable.
+- **`tools/build-webgl-dev.sh`** — same pipeline, but invokes `BuildScripts.BuildWebGLDev` which sets `BuildOptions.Development`. Unity auto-defines `DEVELOPMENT_BUILD`, which unlocks the debug overlay and any other `#if UNITY_EDITOR || DEVELOPMENT_BUILD`-gated surfaces. Writes to `build/WebGL-dev/`. On success, touches a `.dev-build-marker` sentinel inside the output directory — this is the deploy pipeline's "is this a dev build?" signal.
+- **`tools/serve-webgl-dev.sh`** — `python3 -m http.server 8000 --directory build/WebGL-dev/` with a port-availability precheck. Used during manual verification. Override the port with `PORT=<n>`.
+- **`tools/deploy-webgl.sh`** — runs the identity scrub on the build output, `rsync`s it into a `gh-pages` linked worktree at `../Meteor-Idle-gh-pages`, writes `.nojekyll`, and makes a commit. The script does **not** push — it prints the exact `git push` command for manual review. **Refuses to deploy if it finds a `.dev-build-marker` sentinel**, making it impossible to accidentally ship a development build to GitHub Pages.
 
-Both scripts must be run from the repo root. The deploy fires after a branch has been fast-forwarded to `main` and play-tested end-to-end in the editor.
+All scripts must be run from the repo root. The deploy fires after a branch has been fast-forwarded to `main` and verified end-to-end via a local WebGL dev build (not editor play mode — editor play mode doesn't run the same code path real players see, so it's only used for fast iterative debugging during development).
 
 ## How to play
 
@@ -40,7 +42,7 @@ Both scripts must be run from the repo root. The deploy fires after a branch has
 - **Click a built turret** to open its upgrade panel — there's a separate panel for each weapon type because their stats are different. **Click outside the panel** (or press Escape) to close it.
 - Each missile/railgun shot that destroys voxels earns **$1 per voxel destroyed**, and partial destruction pays out — every hit counts even if the meteor isn't fully cleared.
 - Meteors that drift past the base level fade out without penalty (yet).
-- Press **`` ` ``** (backquote) in the editor while playing to open a debug overlay that pauses the game and lets you tweak values (currently: set current money, full game reset). The debug overlay only exists in editor play mode — it's stripped from player builds.
+- Press **`` ` ``** (backquote) in the editor while playing, or in a local WebGL dev build served via `tools/serve-webgl-dev.sh`, to open a debug overlay that pauses the game and lets you tweak values (currently: set current money, full game reset). The debug overlay is gated on `UNITY_EDITOR || DEVELOPMENT_BUILD` and is stripped from the production build deployed to GitHub Pages.
 
 ### Weapons
 
@@ -104,9 +106,11 @@ Tests/
   PlayMode/                     20 physics/integration tests (~16s runtime)
 tools/
   identity-scrub.py             pre-commit identity-leak check
-  build-webgl.sh                headless Unity CLI wrapper for the WebGL build
+  build-webgl.sh                headless Unity CLI wrapper for the prod WebGL build
+  build-webgl-dev.sh            same, DEVELOPMENT_BUILD flavor with debug overlay unlocked
+  serve-webgl-dev.sh            python http.server on :8000 serving build/WebGL-dev/
   deploy-webgl.sh               rsyncs build/WebGL/ to the gh-pages worktree, scrubs, commits
-Assets/Editor/BuildScripts.cs   editor-side BuildWebGL entry point invoked by build-webgl.sh
+Assets/Editor/BuildScripts.cs   editor-side BuildWebGL + BuildWebGLDev entry points
 docs/superpowers/
   specs/                        design docs (one per iteration)
   plans/                        implementation plans (task-by-task)
