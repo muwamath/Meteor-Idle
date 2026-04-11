@@ -19,7 +19,15 @@ public class Meteor : MonoBehaviour
     private Vector2 velocity;
     private MeteorSpawner owner;
 
-    private bool[,] voxels;
+    // Parallel voxel state: kind[,] for what the cell is (Empty/Dirt/Core),
+    // hp[,] for how many more hits before it clears. Phase 1 keeps instant-
+    // clear behavior (dirt HP 1, cores also clear on first hit). Phase 2
+    // will start decrementing hp instead of setting Empty outright, so
+    // cores with HP > 1 survive multiple hits. All internal checks go
+    // through kind[x,y] != VoxelKind.Empty for "alive" — hp is only read
+    // when applying damage.
+    private VoxelKind[,] kind;
+    private int[,] hp;
     private Texture2D texture;
     private Sprite sprite;
     private int aliveCount;
@@ -49,7 +57,7 @@ public class Meteor : MonoBehaviour
         transform.localScale = Vector3.one * sizeScale;
 
         ReleaseTexture();
-        VoxelMeteorGenerator.Generate(seed, out voxels, out texture, out aliveCount);
+        VoxelMeteorGenerator.Generate(seed, sizeScale, out kind, out hp, out texture, out aliveCount);
         sprite = Sprite.Create(
             texture,
             new Rect(0, 0, VoxelMeteorGenerator.TextureSize, VoxelMeteorGenerator.TextureSize),
@@ -110,29 +118,23 @@ public class Meteor : MonoBehaviour
         // Clamp to the valid cell-center range so rim-edge impacts snap onto the
         // nearest column/row instead of landing outside the grid. Legitimate
         // pass-through-hole misses still return 0 because the cell check still
-        // requires voxels[x,y] == true.
+        // requires kind[x,y] != Empty.
         gx = Mathf.Clamp(gx, 0.5f, VoxelMeteorGenerator.GridSize - 0.5f);
         gy = Mathf.Clamp(gy, 0.5f, VoxelMeteorGenerator.GridSize - 0.5f);
 
         // The meteor's CircleCollider2D radius never shrinks as voxels are destroyed, so
         // a missile can trigger on an eroded rim that has no live voxels within the blast
         // circle — landing a "hit in empty space". Walk the impact coordinates inward
-        // (toward the meteor center) until we find a live voxel, then blast there. This
-        // produces an outside-rim crater on the first live chunk along the missile's
-        // entry path.
+        // (toward the meteor center) until we find a live voxel, then blast there.
         WalkInwardToAliveCell(ref gx, ref gy);
 
-        // Safety net: if the inward walk ended on a dead cell (the impact landed in
-        // a fully-bored tunnel where no live voxel sits along the ray to center), fall
-        // back to the nearest alive voxel anywhere in the grid. A missile must always
-        // damage the meteor it collides with — the user's requirement is "never pass
-        // through". aliveCount > 0 is guaranteed by the early return above.
+        // Safety net: if the inward walk ended on a dead cell, fall back to the
+        // nearest alive voxel anywhere in the grid. aliveCount > 0 is guaranteed
+        // by the early return above.
         int snapX = Mathf.Clamp(Mathf.FloorToInt(gx), 0, VoxelMeteorGenerator.GridSize - 1);
         int snapY = Mathf.Clamp(Mathf.FloorToInt(gy), 0, VoxelMeteorGenerator.GridSize - 1);
-        if (!voxels[snapX, snapY]) SnapToNearestAliveCell(ref gx, ref gy);
-        // Scale-invariant: the blast covers the same number of grid cells on any
-        // size meteor. Without this, big meteors get proportionally smaller blasts
-        // (in grid units) and miss outer columns that small meteors would hit.
+        if (kind[snapX, snapY] == VoxelKind.Empty) SnapToNearestAliveCell(ref gx, ref gy);
+
         float gridRadius = worldRadius * localToGrid;
 
         int minX = Mathf.Max(0, Mathf.FloorToInt(gx - gridRadius));
@@ -148,13 +150,16 @@ public class Meteor : MonoBehaviour
         {
             for (int x = minX; x <= maxX; x++)
             {
-                if (!voxels[x, y]) continue;
+                if (kind[x, y] == VoxelKind.Empty) continue;
                 float cx = x + 0.5f;
                 float cy = y + 0.5f;
                 float d2 = (cx - gx) * (cx - gx) + (cy - gy) * (cy - gy);
                 if (d2 > r2) continue;
 
-                voxels[x, y] = false;
+                // Phase 1 keeps instant-clear semantics; Phase 2 will switch
+                // to hp[x,y]-- and only clear on hp <= 0.
+                kind[x, y] = VoxelKind.Empty;
+                hp[x, y] = 0;
                 VoxelMeteorGenerator.ClearVoxel(texture, x, y);
                 anyPainted = true;
                 destroyed++;
@@ -185,10 +190,6 @@ public class Meteor : MonoBehaviour
     // perpendicular band of width caliberWidth (1 = 1 cell, 2 = 3 cells,
     // 3 = 5 cells). Each live cell destroyed consumes 1 from the budget.
     // Empty cells are free — the round glides past without losing budget.
-    // Stops when budget hits 0 or the ray exits the grid. Returns the number
-    // of voxels actually destroyed and, via out param, the world position
-    // where the walk terminated (used by RailgunRound to continue to the
-    // next meteor with remaining budget).
     public int ApplyTunnel(
         Vector3 entryWorld,
         Vector3 worldDirection,
@@ -209,25 +210,13 @@ public class Meteor : MonoBehaviour
         float dx = localDir.x;
         float dy = localDir.y;
 
-        // Perpendicular direction (2D rotation by 90°) for caliber width.
         float perpX = -dy;
         float perpY = dx;
-        int halfBand = Mathf.Max(0, caliberWidth - 1); // 0, 1, 2 for caliber 1, 2, 3
+        int halfBand = Mathf.Max(0, caliberWidth - 1);
 
         int consumed = 0;
         bool anyPainted = false;
-        // GridSize*4 = 40 half-cell steps = 20 cells of walk distance, enough
-        // to traverse the full 10-cell grid even when entry is several cells
-        // outside the boundary (common: missiles hit the circle collider at
-        // world distance ~0.75 from center, which lands outside the square
-        // voxel grid by ~5 cells along the approach direction).
         int maxSteps = VoxelMeteorGenerator.GridSize * 4;
-
-        // Track whether the walker has entered the grid yet. Entry points can
-        // start outside the grid (that's the common case — see note above);
-        // we only want to terminate when we've been INSIDE and then left the
-        // other side. Without this flag, entries below the grid would break
-        // out on the first step without ever destroying anything.
         bool hasEnteredGrid = false;
 
         for (int step = 0; step < maxSteps; step++)
@@ -239,7 +228,6 @@ public class Meteor : MonoBehaviour
                 gy >= 0f && gy < VoxelMeteorGenerator.GridSize;
             if (inGridNow) hasEnteredGrid = true;
 
-            // Destroy all live cells within the perpendicular band at this step.
             for (int offset = -halfBand; offset <= halfBand; offset++)
             {
                 float cellX = gx + perpX * offset;
@@ -248,9 +236,11 @@ public class Meteor : MonoBehaviour
                 int iy = Mathf.FloorToInt(cellY);
                 if (ix < 0 || ix >= VoxelMeteorGenerator.GridSize) continue;
                 if (iy < 0 || iy >= VoxelMeteorGenerator.GridSize) continue;
-                if (!voxels[ix, iy]) continue; // empty — free, doesn't consume budget
+                if (kind[ix, iy] == VoxelKind.Empty) continue; // empty — free
 
-                voxels[ix, iy] = false;
+                // Phase 1 instant-clear; Phase 2 will decrement hp first.
+                kind[ix, iy] = VoxelKind.Empty;
+                hp[ix, iy] = 0;
                 VoxelMeteorGenerator.ClearVoxel(texture, ix, iy);
                 anyPainted = true;
                 consumed++;
@@ -267,14 +257,9 @@ public class Meteor : MonoBehaviour
                 if (budget <= 0) break;
             }
 
-            // Advance half a cell along the ray (sub-cell steps so adjacent
-            // cells along the direction both get checked).
             gx += dx * 0.5f;
             gy += dy * 0.5f;
 
-            // Only terminate once we've been inside the grid AND have now
-            // walked back out the other side. Entries from outside keep
-            // walking until they enter.
             if (hasEnteredGrid)
             {
                 if (gx < -0.5f || gx >= VoxelMeteorGenerator.GridSize + 0.5f) break;
@@ -291,9 +276,6 @@ public class Meteor : MonoBehaviour
             owner?.Release(this);
         }
 
-        // Report where the walk terminated in world space — used by the
-        // railgun round to compute where to continue when piercing to the
-        // next meteor.
         Vector3 localExit = new Vector3(
             gx / localToGrid - halfExtent,
             gy / localToGrid - halfExtent,
@@ -303,10 +285,6 @@ public class Meteor : MonoBehaviour
         return consumed;
     }
 
-    // Full-grid scan for the alive voxel closest to (gx, gy). Only called as a
-    // last-resort fallback when the walk-inward search ended on a dead cell —
-    // guarantees that a missile collision always lands on some live voxel so we
-    // never return 0 destroyed on a valid hit.
     private void SnapToNearestAliveCell(ref float gx, ref float gy)
     {
         int bestX = -1, bestY = -1;
@@ -315,7 +293,7 @@ public class Meteor : MonoBehaviour
         {
             for (int x = 0; x < VoxelMeteorGenerator.GridSize; x++)
             {
-                if (!voxels[x, y]) continue;
+                if (kind[x, y] == VoxelKind.Empty) continue;
                 float cx = x + 0.5f;
                 float cy = y + 0.5f;
                 float d2 = (cx - gx) * (cx - gx) + (cy - gy) * (cy - gy);
@@ -334,13 +312,6 @@ public class Meteor : MonoBehaviour
         }
     }
 
-    // Walk (gx, gy) from the contact point toward the meteor center, stopping at the
-    // first alive voxel encountered. This keeps the blast on the outside rim at the
-    // missile's entry side — if the near rim is intact we stay there; if the near rim
-    // has been eroded, the blast shifts inward by however much has been carved away,
-    // hitting the next surviving layer from the same side. The walk stops at the center,
-    // so a missile that grazes a fully-hollowed-out meteor can't reach through to the
-    // far side.
     private void WalkInwardToAliveCell(ref float gx, ref float gy)
     {
         const float center = VoxelMeteorGenerator.GridSize * 0.5f;
@@ -351,7 +322,6 @@ public class Meteor : MonoBehaviour
 
         float stepX = dx / distToCenter;
         float stepY = dy / distToCenter;
-        // Step in 0.5-cell increments so adjacent cells along the ray are both checked.
         int maxSteps = Mathf.CeilToInt(distToCenter * 2f);
         float cx = gx;
         float cy = gy;
@@ -359,7 +329,7 @@ public class Meteor : MonoBehaviour
         {
             int ix = Mathf.Clamp(Mathf.FloorToInt(cx), 0, VoxelMeteorGenerator.GridSize - 1);
             int iy = Mathf.Clamp(Mathf.FloorToInt(cy), 0, VoxelMeteorGenerator.GridSize - 1);
-            if (voxels[ix, iy])
+            if (kind[ix, iy] != VoxelKind.Empty)
             {
                 gx = ix + 0.5f;
                 gy = iy + 0.5f;
@@ -383,22 +353,22 @@ public class Meteor : MonoBehaviour
 
     public bool IsVoxelPresent(int gx, int gy)
     {
-        if (voxels == null) return false;
+        if (kind == null) return false;
         if (gx < 0 || gy < 0 || gx >= VoxelMeteorGenerator.GridSize || gy >= VoxelMeteorGenerator.GridSize) return false;
-        return voxels[gx, gy];
+        return kind[gx, gy] != VoxelKind.Empty;
     }
 
     public bool PickRandomPresentVoxel(out int gx, out int gy)
     {
         gx = 0; gy = 0;
-        if (voxels == null) return false;
+        if (kind == null) return false;
 
         // Count present cells directly instead of trusting aliveCount. Cheap on a 10x10 grid
         // and defensive against any future drift between aliveCount and the voxel grid.
         int liveCount = 0;
         for (int y = 0; y < VoxelMeteorGenerator.GridSize; y++)
             for (int x = 0; x < VoxelMeteorGenerator.GridSize; x++)
-                if (voxels[x, y]) liveCount++;
+                if (kind[x, y] != VoxelKind.Empty) liveCount++;
 
         if (liveCount == 0) return false;
 
@@ -408,7 +378,7 @@ public class Meteor : MonoBehaviour
         {
             for (int x = 0; x < VoxelMeteorGenerator.GridSize; x++)
             {
-                if (!voxels[x, y]) continue;
+                if (kind[x, y] == VoxelKind.Empty) continue;
                 if (seen == targetIndex)
                 {
                     gx = x; gy = y;

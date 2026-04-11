@@ -91,9 +91,11 @@ Steps inside `Generate`:
    | Size | coreCount | coreHp |
    |------|-----------|--------|
    | 0.525 | 1 | 1 |
-   | 0.75  | 2 | 3 |
+   | 0.75  | 2 | 2 |
    | 1.0   | 3 | 4 |
    | 1.2   | 4 | 5 |
+
+   (Values are the formula's RoundToInt output; the initial spec draft had "3" at size 0.75 for coreHp, which was a rounding-table error. The formula is the source of truth.)
 
 3. **Pick core cells.** Deterministic placement using the same `System.Random(seed)` already threaded through the generator:
 
