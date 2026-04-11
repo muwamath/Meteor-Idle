@@ -1,6 +1,6 @@
 using UnityEngine;
 
-#if UNITY_EDITOR
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
 using TMPro;
 using UnityEngine.InputSystem;
 using UnityEngine.SceneManagement;
@@ -65,8 +65,9 @@ public class DebugOverlay : MonoBehaviour
 #else
 public class DebugOverlay : MonoBehaviour
 {
-    // Debug overlay is editor-only. Stub exists so scene references don't break
-    // in player builds. Does nothing at runtime.
+    // Debug overlay is only present in Editor and in development player builds
+    // (DEVELOPMENT_BUILD). This stub exists so scene references don't break in
+    // production player builds pushed to gh-pages. Does nothing at runtime.
     private void Awake() { gameObject.SetActive(false); }
 }
 #endif
