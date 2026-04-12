@@ -190,5 +190,203 @@ namespace MeteorIdle.Tests.Editor
                 }
             }
         }
+
+        // ====================================================================
+        // Iter 2 — placement pass tests (stone clumps, gold, explosives)
+        // ====================================================================
+
+        private static MaterialRegistry LoadRegistry()
+        {
+            var registry = UnityEditor.AssetDatabase.LoadAssetAtPath<MaterialRegistry>(
+                "Assets/Data/MaterialRegistry.asset");
+            Assert.IsNotNull(registry, "MaterialRegistry.asset must exist (Phase 1)");
+            return registry;
+        }
+
+        [Test]
+        public void Generate_WithRegistry_EmitsMaterialArrayMatchingDirtAndCore()
+        {
+            var registry = LoadRegistry();
+            VoxelMeteorGenerator.Generate(
+                seed: 42, sizeScale: 1f, registry: registry,
+                out var kind, out _, out var material,
+                out var tex, out _);
+            try
+            {
+                // Every non-empty cell must have a material reference.
+                for (int y = 0; y < VoxelMeteorGenerator.GridSize; y++)
+                    for (int x = 0; x < VoxelMeteorGenerator.GridSize; x++)
+                        if (kind[x, y] != VoxelKind.Empty)
+                            Assert.IsNotNull(material[x, y],
+                                $"cell ({x},{y}) has kind {kind[x, y]} but no material");
+            }
+            finally { Object.DestroyImmediate(tex); }
+        }
+
+        [Test]
+        public void Generate_WithRegistry_DeterministicAcrossCalls()
+        {
+            var registry = LoadRegistry();
+            VoxelMeteorGenerator.Generate(12345, 1f, registry,
+                out var kindA, out _, out var materialA, out var texA, out _);
+            VoxelMeteorGenerator.Generate(12345, 1f, registry,
+                out var kindB, out _, out var materialB, out var texB, out _);
+            try
+            {
+                for (int y = 0; y < VoxelMeteorGenerator.GridSize; y++)
+                    for (int x = 0; x < VoxelMeteorGenerator.GridSize; x++)
+                    {
+                        Assert.AreEqual(kindA[x, y], kindB[x, y]);
+                        Assert.AreSame(materialA[x, y], materialB[x, y]);
+                    }
+            }
+            finally
+            {
+                Object.DestroyImmediate(texA);
+                Object.DestroyImmediate(texB);
+            }
+        }
+
+        [Test]
+        public void Generate_StoneVeinNeverExceedsTwoDeep()
+        {
+            var registry = LoadRegistry();
+            var stoneMat = registry.GetByName("Stone");
+
+            // Sweep many seeds at largest size (most clumps, most growth) to
+            // catch any clump that violates the 2-deep cap.
+            for (int seed = 1; seed <= 200; seed++)
+            {
+                VoxelMeteorGenerator.Generate(seed, 1.2f, registry,
+                    out _, out _, out var material, out var tex, out _);
+                try
+                {
+                    for (int y = 0; y < VoxelMeteorGenerator.GridSize; y++)
+                    {
+                        for (int x = 0; x < VoxelMeteorGenerator.GridSize; x++)
+                        {
+                            if (material[x, y] != stoneMat) continue;
+                            // Every stone cell must have a non-stone neighbor
+                            // within manhattan distance 2 (or be near OOB).
+                            bool hasEscape = false;
+                            for (int dy = -2; dy <= 2 && !hasEscape; dy++)
+                            {
+                                for (int dx = -2; dx <= 2 && !hasEscape; dx++)
+                                {
+                                    if (Mathf.Abs(dx) + Mathf.Abs(dy) > 2) continue;
+                                    if (dx == 0 && dy == 0) continue;
+                                    int nx = x + dx;
+                                    int ny = y + dy;
+                                    if (nx < 0 || ny < 0 ||
+                                        nx >= VoxelMeteorGenerator.GridSize ||
+                                        ny >= VoxelMeteorGenerator.GridSize)
+                                    { hasEscape = true; break; }
+                                    if (material[nx, ny] != stoneMat) hasEscape = true;
+                                }
+                            }
+                            Assert.IsTrue(hasEscape,
+                                $"seed {seed}: stone cell ({x},{y}) has no non-stone neighbor within 2 manhattan steps — clump exceeds 2-deep cap");
+                        }
+                    }
+                }
+                finally { Object.DestroyImmediate(tex); }
+            }
+        }
+
+        [Test]
+        public void Generate_ExplosivesNeverAdjacentToOtherExplosives()
+        {
+            var registry = LoadRegistry();
+            var explosiveMat = registry.GetByName("Explosive");
+
+            for (int seed = 1; seed <= 500; seed++)
+            {
+                VoxelMeteorGenerator.Generate(seed, 1.2f, registry,
+                    out _, out _, out var material, out var tex, out _);
+                try
+                {
+                    for (int y = 0; y < VoxelMeteorGenerator.GridSize; y++)
+                    {
+                        for (int x = 0; x < VoxelMeteorGenerator.GridSize; x++)
+                        {
+                            if (material[x, y] != explosiveMat) continue;
+                            for (int dy = -1; dy <= 1; dy++)
+                            {
+                                for (int dx = -1; dx <= 1; dx++)
+                                {
+                                    if (dx == 0 && dy == 0) continue;
+                                    int nx = x + dx;
+                                    int ny = y + dy;
+                                    if (nx < 0 || ny < 0 ||
+                                        nx >= VoxelMeteorGenerator.GridSize ||
+                                        ny >= VoxelMeteorGenerator.GridSize) continue;
+                                    Assert.AreNotSame(explosiveMat, material[nx, ny],
+                                        $"seed {seed}: adjacent explosives at ({x},{y}) and ({nx},{ny})");
+                                }
+                            }
+                        }
+                    }
+                }
+                finally { Object.DestroyImmediate(tex); }
+            }
+        }
+
+        [Test]
+        public void Generate_GoldPrefersStoneNeighbors_WhenStonePresent()
+        {
+            var registry = LoadRegistry();
+            var stoneMat = registry.GetByName("Stone");
+            var goldMat  = registry.GetByName("Gold");
+
+            int totalGold = 0;
+            int goldNextToStone = 0;
+            for (int seed = 1; seed <= 1000; seed++)
+            {
+                VoxelMeteorGenerator.Generate(seed, 1.2f, registry,
+                    out _, out _, out var material, out var tex, out _);
+                try
+                {
+                    bool stonePresent = false;
+                    for (int y = 0; y < VoxelMeteorGenerator.GridSize && !stonePresent; y++)
+                        for (int x = 0; x < VoxelMeteorGenerator.GridSize && !stonePresent; x++)
+                            if (material[x, y] == stoneMat) stonePresent = true;
+                    if (!stonePresent) continue;
+
+                    for (int y = 0; y < VoxelMeteorGenerator.GridSize; y++)
+                    {
+                        for (int x = 0; x < VoxelMeteorGenerator.GridSize; x++)
+                        {
+                            if (material[x, y] != goldMat) continue;
+                            totalGold++;
+                            bool nextToStone = false;
+                            for (int dy = -1; dy <= 1 && !nextToStone; dy++)
+                            {
+                                for (int dx = -1; dx <= 1 && !nextToStone; dx++)
+                                {
+                                    if (dx == 0 && dy == 0) continue;
+                                    int nx = x + dx;
+                                    int ny = y + dy;
+                                    if (nx < 0 || ny < 0 ||
+                                        nx >= VoxelMeteorGenerator.GridSize ||
+                                        ny >= VoxelMeteorGenerator.GridSize) continue;
+                                    if (material[nx, ny] == stoneMat) nextToStone = true;
+                                }
+                            }
+                            if (nextToStone) goldNextToStone++;
+                        }
+                    }
+                }
+                finally { Object.DestroyImmediate(tex); }
+            }
+
+            if (totalGold == 0)
+            {
+                Assert.Inconclusive("no gold rolled across 1000 seeds — increase sample or weight");
+                return;
+            }
+            float ratio = (float)goldNextToStone / totalGold;
+            Assert.Greater(ratio, 0.6f,
+                $"only {goldNextToStone}/{totalGold} gold cells were adjacent to stone — preference broken");
+        }
     }
 }
