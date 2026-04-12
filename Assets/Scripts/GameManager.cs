@@ -46,4 +46,24 @@ public class GameManager : MonoBehaviour
         Money = Mathf.Max(0, value);
         OnMoneyChanged?.Invoke(Money);
     }
+
+    // Iter 3: global registry of active CoreDrops. Drones iterate this list
+    // to find targets. Drops register themselves when spawned by Meteor and
+    // unregister when consumed or despawned.
+    private readonly System.Collections.Generic.List<CoreDrop> activeDrops
+        = new System.Collections.Generic.List<CoreDrop>();
+
+    public System.Collections.Generic.IReadOnlyList<CoreDrop> ActiveDrops => activeDrops;
+
+    public void RegisterDrop(CoreDrop drop)
+    {
+        if (drop == null) return;
+        if (!activeDrops.Contains(drop)) activeDrops.Add(drop);
+    }
+
+    public void UnregisterDrop(CoreDrop drop)
+    {
+        if (drop == null) return;
+        activeDrops.Remove(drop);
+    }
 }
