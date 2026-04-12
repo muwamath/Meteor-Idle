@@ -8,7 +8,9 @@ public class ThrusterTrail : MonoBehaviour
     [SerializeField] private float emitInterval = 0.012f;
     [SerializeField] private float particleLifetime = 0.6f;
     [SerializeField] private Sprite particleSprite;
-    [SerializeField] private Color trailColor = Color.white;
+
+    private Color trailColor = Color.white;
+    public void SetColor(Color c) { trailColor = c; }
 
     private float emitTimer;
 

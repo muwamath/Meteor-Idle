@@ -43,12 +43,28 @@ public class CollectorDrone : MonoBehaviour
 
     private SpriteRenderer spriteRenderer;
 
+    private static readonly Color[] DroneColors = {
+        new Color(0.3f, 0.7f, 1f, 1f),   // sky blue
+        new Color(1f, 0.6f, 0.2f, 1f),   // orange
+        new Color(0.5f, 1f, 0.4f, 1f),   // lime
+        new Color(1f, 0.4f, 0.8f, 1f),   // pink
+        new Color(1f, 1f, 0.3f, 1f),     // yellow
+        new Color(0.6f, 0.4f, 1f, 1f),   // purple
+    };
+    private static int nextColorIndex;
+
     private void Awake()
     {
         body = new DroneBody(transform.position, thrustCap: 4f, dampingPerSec: 1f);
         spriteRenderer = GetComponent<SpriteRenderer>();
         var col = GetComponent<CircleCollider2D>();
         if (col != null) col.isTrigger = true;
+
+        Color myColor = DroneColors[nextColorIndex % DroneColors.Length];
+        nextColorIndex++;
+        foreach (var trail in GetComponentsInChildren<ThrusterTrail>(true))
+            trail.SetColor(myColor);
+
         UpdateSortingOrder();
     }
 

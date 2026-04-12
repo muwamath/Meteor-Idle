@@ -15,8 +15,8 @@ MonoBehaviour:
   thrust:
     id: 0
     displayName: Thrust
-    baseValue: 4
-    perLevelAdd: 1
+    baseValue: 8
+    perLevelAdd: 2
     baseCost: 1
     costGrowth: 1
   batteryCapacity:
@@ -36,7 +36,7 @@ MonoBehaviour:
   braking:
     id: 3
     displayName: Braking
-    baseValue: 3
-    perLevelAdd: 1.5
+    baseValue: 2
+    perLevelAdd: 0.5
     baseCost: 1
     costGrowth: 1
