@@ -1,6 +1,6 @@
 # Meteor Idle
 
-A 2D desktop idle game built in Unity 6. Voxel meteors rain from the top of the screen; up to 3 base slots along the bottom auto-fire weapons that chew chunks out of them. Each destroyed voxel pays out. Spend the money to buy new slots, choose weapons, and upgrade them.
+A 2D desktop idle game built in Unity 6. Voxel meteors rain from the top of the screen. The bottom row holds 4 weapon bases, 2 drone bays, and a rock-grinder Collector. Weapons auto-fire to destroy meteor voxels. Core voxels spawn floating CoreDrop entities that collector drones physically retrieve and deliver to the Collector for cash. Spend the money to buy new weapon slots, upgrade weapons, and upgrade drones.
 
 ## Play it
 
@@ -10,7 +10,7 @@ Runs in any modern browser. The WebGL build is Brotli-compressed with Unity's de
 
 ## Status
 
-Early in development. **3 base slots, 2 weapons (Missile and Railgun)**, no persistence, no audio. Core loop is playable end-to-end: buy slots, build either weapon into them, fire at meteors, upgrade individual stats per weapon. The economy is currently flattened to **$1 per purchase** for fast development iteration; balance pass comes later.
+Early in development. **4 base slots, 2 weapons (Missile and Railgun), 2 drone bays, 1 Collector**, no persistence, no audio. Core loop is playable end-to-end: buy weapon slots, build either weapon, fire at meteors, upgrade weapons. Core voxels spawn floating drops that collector drones retrieve and deliver to the rock-grinder Collector for cash. The economy is currently flattened to **$1 per purchase** for fast development iteration; balance pass comes later.
 
 ## Running
 
@@ -46,10 +46,14 @@ The deploy fires after a branch has been fast-forwarded to `main` and verified e
 ## How to play
 
 - Meteors spawn from above and drift downward. They're made of small cube voxels on a 10×10 grid.
-- The game starts with 3 base slots along the bottom of the screen. The center slot is pre-built with a Missile turret. The two side slots start empty, shown as a `+` icon.
+- The bottom row layout is: `[base][drone bay][base][collector][base][drone bay][base]` — 4 weapon slots, 2 drone bays, and 1 rock-grinder Collector in the center.
+- One base starts pre-built with a Missile turret. The other 3 start empty (`+` icon). Both drone bays start active with 1 drone each.
 - **Click an empty slot** to open the build modal. Pick a weapon (Missile or Railgun) and pay its cost to install it.
-- **Click a built turret** to open its upgrade panel — there's a separate panel for each weapon type because their stats are different. **Click outside the panel** (or press Escape) to close it.
-- Each missile/railgun shot that destroys voxels earns **$1 per voxel destroyed**, and partial destruction pays out — every hit counts even if the meteor isn't fully cleared.
+- **Click a built turret** to open its upgrade panel — there's a separate panel for each weapon type because their stats are different.
+- **Click a drone bay** to open the drone/bay upgrade panel with two columns: BAY stats (Reload Speed, Drones Per Bay) and DRONE stats (Thrust, Battery Capacity, Cargo Capacity).
+- **Click outside any panel** (or press Escape) to close it. Only one panel is open at a time.
+- Regular voxel destruction earns **$1 per voxel destroyed**. Core voxels don't pay directly — they spawn floating red CoreDrop entities that drift downward slowly.
+- **Collector drones** launch from their bays, fly to CoreDrops, pick them up, deliver them to the Collector (the gold-toothed rock grinder at center), then loop back for more until their battery runs low. When low on battery, drones return to their bay to recharge.
 - Meteors that drift past the base level fade out without penalty (yet).
 - Press **`` ` ``** (backquote) in the editor while playing, or in a local WebGL dev build served via `tools/serve-webgl-dev.sh`, to open a debug overlay that pauses the game and lets you tweak values (currently: set current money, full game reset). The debug overlay is gated on `UNITY_EDITOR || DEVELOPMENT_BUILD` and is stripped from the production build deployed to GitHub Pages.
 
@@ -86,9 +90,9 @@ The two weapons feel mechanically different: missiles are spammy and area-of-eff
 - C# game code in the **`MeteorIdle`** assembly definition
 - New Input System
 - TextMeshPro for UI
-- **Unity Test Framework**: 67 EditMode tests + 20 PlayMode tests covering voxel destruction logic, the per-weapon stats, build-cost escalation, spawner cadence ramp, the per-frame raycast railgun chain, turret targeting, missile homing steering, the quantized railgun charge color animation, the floating-text rise/fade curve, missile collision, and meteor fade
+- **Unity Test Framework**: 189 EditMode tests + 42 PlayMode tests covering voxel destruction logic, per-weapon stats, build-cost escalation, spawner cadence ramp, railgun chain, turret targeting, missile homing, railgun charge animation, floating-text, drone physics (DroneBody integrator), drone state machine (8 states), drone/bay stats, DroneBay door animation, CoreDrop lifecycle, paysOnBreak isolation, end-to-end drone collection, and drone meteor avoidance
 
-All art is procedurally generated at edit time by C# editor scripts — there are no bitmap files authored in external tools. The voxel meteors, both turret barrels, the missile, the railgun bullet, the railgun streak, the starfield, and the particle sprites are all PNGs written by Unity at build time from procedural code. Hard pixel edges, 1-pixel dark/light edges, no smooth gradients — strict voxel aesthetic throughout.
+All art is procedurally generated at edit time by C# editor scripts — there are no bitmap files authored in external tools. The voxel meteors, turret barrels, missiles, railgun bullets, railgun streaks, starfield, collector drone (plus-shape with red tips), drone bay (metallic box with doors), Collector grinder (gold teeth), CoreDrop, and particle sprites are all PNGs written by Unity at build time from procedural code. Hard pixel edges, 1-pixel dark/light edges, no smooth gradients — strict voxel aesthetic throughout.
 
 ## Project layout
 
@@ -98,7 +102,10 @@ Assets/
   Data/
     TurretStats.asset           Missile stats (6)
     RailgunStats.asset          Railgun stats (5)
-  Prefabs/                      BaseSlot, Meteor, Missile, RailgunRound, RailgunStreak, ...
+    DroneStats.asset            Drone stats (3: Thrust, BatteryCapacity, CargoCapacity)
+    BayStats.asset              Bay stats (2: ReloadSpeed, DronesPerBay)
+  Prefabs/                      BaseSlot, Meteor, Missile, RailgunRound, RailgunStreak,
+                                CollectorDrone, DroneBay, Collector, CoreDrop, ...
   Scenes/Game.unity             the one scene
   Scripts/
     MeteorIdle.asmdef           game-code assembly
@@ -106,13 +113,16 @@ Assets/
     TurretBase.cs               abstract base class for weapon turrets
     MissileTurret.cs, RailgunTurret.cs
     BaseSlot.cs, SlotManager.cs
+    Drones/                     Collector, CollectorDrone, CoreDrop, DroneBay, DroneBody,
+                                DroneStats, BayStats, BayManager, ThrusterTrail, ...
     Weapons/                    WeaponType enum, RailgunRound, RailgunStreak
     Data/                       TurretStats.cs, RailgunStats.cs
-    UI/                         MissileUpgradePanel, RailgunUpgradePanel, BuildSlotPanel, ...
+    UI/                         MissileUpgradePanel, RailgunUpgradePanel, DroneUpgradePanel,
+                                BuildSlotPanel, PanelManager, ...
     Debug/DebugOverlay.cs       editor-only money setter + reset
 Tests/
-  EditMode/                     67 logic tests (~2s runtime)
-  PlayMode/                     20 physics/integration tests (~16s runtime)
+  EditMode/                     189 logic tests (~2s runtime)
+  PlayMode/                     42 physics/integration tests (~40s runtime)
 tools/
   identity-scrub.py             pre-commit identity-leak check
   build-webgl.sh                headless Unity CLI wrapper for the prod WebGL build
@@ -133,6 +143,8 @@ docs/superpowers/
 - [Voxel meteors design spec](docs/superpowers/specs/2026-04-10-voxel-meteors-design.md) — voxel destruction model
 - [Voxel meteors implementation plan](docs/superpowers/plans/2026-04-10-voxel-meteors.md) — task-by-task breakdown
 - [MVP design spec](docs/superpowers/specs/2026-04-10-meteor-idle-mvp-design.md) — original smooth-sprite MVP (superseded by the voxel spec)
+- [Drone economy design](docs/superpowers/specs/2026-04-11-drone-economy-design.md) — Iter 3: CoreDrop entities, collector drones, Collector grinder, DroneBay
+- [Drone economy plan](docs/superpowers/plans/2026-04-11-drone-economy.md) — 10-phase task-by-task implementation
 
 ## License
 

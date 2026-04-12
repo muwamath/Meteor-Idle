@@ -4,7 +4,7 @@ Working guidance for Claude Code sessions in this repo.
 
 ## What this is
 
-A 2D Unity 6 idle game. Voxel meteors fall; up to 3 base slots along the bottom auto-fire weapons that destroy meteor voxels. Destroyed voxels pay $1 each; money buys per-weapon upgrades. Two weapon types today (Missile and Railgun). Desktop/laptop target, landscape 16:9. Early development — no persistence, no audio.
+A 2D Unity 6 idle game. Voxel meteors fall; the bottom row has 4 base slots (weapons), 2 drone bays, and 1 collector (rock grinder). Weapons auto-fire to destroy meteor voxels. Core voxels don't pay directly — they spawn CoreDrop entities that collector drones physically retrieve and deliver to the Collector for cash. Regular voxels still pay $1 each on destruction. Two weapon types (Missile and Railgun), collector drones with custom physics, animated grinder. Desktop/laptop target, landscape 16:9. Early development — no persistence, no audio.
 
 ## Tech stack
 
@@ -23,12 +23,18 @@ Assets/
   Data/
     TurretStats.asset           Missile turret upgrade stats (6 stats, 2 categories)
     RailgunStats.asset          Railgun turret upgrade stats (5 stats, single column)
+    DroneStats.asset            Drone stats (Thrust, BatteryCapacity, CargoCapacity)
+    BayStats.asset              Bay stats (ReloadSpeed, DronesPerBay)
   Prefabs/
     BaseSlot.prefab             slot root with two weapon-child siblings (see UI section)
     Meteor.prefab               voxel meteor on the Meteors physics layer
     Missile.prefab              homing missile with Rigidbody2D + trigger collider
     RailgunRound.prefab         visual-only railgun bullet (no collider, per-frame raycast)
     RailgunStreak.prefab        stretched-sprite trailing line VFX
+    CollectorDrone.prefab       plus-shaped drone with 4 thruster trail children
+    DroneBay.prefab             bay body with 2 animated door children
+    Collector.prefab            rock grinder with 2 animated tooth children
+    CoreDrop.prefab             floating red entity spawned by core voxel kills
     Build/Upgrade button prefabs, particle prefabs, FloatingText
   Scenes/Game.unity             the one scene
   Scripts/
@@ -40,11 +46,23 @@ Assets/
     MissileTurret.cs            TurretBase subclass; missile pool + fire
     RailgunTurret.cs            TurretBase subclass; charge color animation + fire
     BaseSlot.cs                 slot root with two weapon-child refs + per-weapon panel routing
-    SlotManager.cs              spawns 3 slots, per-weapon NextBuildCost(WeaponType)
+    SlotManager.cs              spawns 4 slots, per-weapon NextBuildCost(WeaponType)
     MeteorSpawner.cs            timer + pool, calm starting cadence
-    GameManager.cs              money singleton + OnMoneyChanged event, SetMoney for debug
+    GameManager.cs              money singleton + OnMoneyChanged event, SetMoney for debug, CoreDrop registry
     SimplePool.cs               generic MonoBehaviour pool
     FloatingText.cs             world-space "+$N" tween
+    Drones/
+      Collector.cs              single rock-grinder deposit point, animated teeth (4-step quantized)
+      CollectorDrone.cs         state machine (8 states), DroneBody integration, avoidance, contact push
+      CoreDrop.cs               floating entity spawned by core kills, drifts down, claimed by drones
+      DroneBay.cs               launch/catch/recharge, 4-keyframe door animation, ICollectorDroneEnvironment
+      DroneBody.cs              custom 2D physics integrator (exponential damping, avoidance)
+      DroneState.cs             enum: Idle/Launching/Seeking/Pickup/Delivering/Depositing/Returning/Docking
+      DroneStats.cs             ScriptableObject: Thrust, BatteryCapacity, CargoCapacity
+      BayStats.cs               ScriptableObject: ReloadSpeed, DronesPerBay
+      BayManager.cs             spawns 2 bays + wires Collector reference
+      ICollectorDroneEnvironment.cs  interface for mock-injectable drone testing
+      ThrusterTrail.cs          voxel particle emitter on drone arm tips
     Weapons/
       WeaponType.cs             enum { Missile, Railgun }
       RailgunRound.cs           per-frame Physics2D.RaycastAll on Meteors layer
@@ -57,10 +75,12 @@ Assets/
       MoneyDisplay.cs           top-center TMP label, listens to money
       MissileUpgradePanel.cs    missile stats, two-column Launcher/Missile layout
       RailgunUpgradePanel.cs    railgun stats, single column
-      UpgradeButton.cs          shared prefab; Bind() for missile, BindRailgun() for railgun
+      UpgradeButton.cs          shared prefab; Bind/BindRailgun/BindDrone/BindBay
+      DroneUpgradePanel.cs      BAY + DRONE two-column upgrade panel
       BuildSlotPanel.cs         modal for buying a new base slot (per-weapon costs)
       BuildWeaponButton.cs      one per weapon type in the build modal
       ModalClickCatcher.cs      click-outside-to-close behind any modal CanvasGroup
+      PanelManager.cs           static exclusive-panel manager (only one overlay at a time)
 Tests/
   EditMode/
     MeteorIdle.Tests.Editor.asmdef
@@ -74,16 +94,28 @@ Tests/
     SimplePoolTests.cs          prewarm/Get/Release/reuse cycle
     SlotManagerBuildCostTests.cs  NextBuildCost in-table + overflow, both weapons
     MeteorSpawnerIntervalTests.cs ramp lerp from initialInterval to minInterval
+    DroneBodyTests.cs           integrator: damping, thrust, push kick, limp-home, avoidance
+    DroneStateMachineTests.cs   full state machine transitions including Delivering/Depositing
+    DroneStatsTests.cs          NextCost/CurrentValue/ApplyUpgrade for drone stats
+    BayStatsTests.cs            same for bay stats, maxLevel cap on DronesPerBay
+    DroneBayDoorsTests.cs       4-keyframe quantized door animation
+    CoreDropTests.cs            drift, claim, consume lifecycle
+    DestroyResultPayoutTests.cs paysOnBreak flag isolation
+    GameManagerDropRegistryTests.cs  RegisterDrop/UnregisterDrop/ActiveDrops
+    MeteorCoreDropsSpawnTests.cs  core kills spawn CoreDrop entities
+    VoxelMaterialTests.cs       paysOnBreak flag on VoxelMaterial
     TestHelpers.cs              reflection-invoked Awake/Update for EditMode tests
   PlayMode/
     MeteorIdle.Tests.PlayMode.asmdef
-    PlayModeTestFixture.cs      shared spawn helpers for meteor/missile/railgun
+    PlayModeTestFixture.cs      shared spawn helpers for meteor/missile/railgun/drone
     ExistingFeatureSmokeTests.cs  missile collision, meteor fade, spawner pooling
     RailgunPlayModeTests.cs     fires-into-meteor, pierces-two, layer-mask filter
     TurretTargetingTests.cs     TurretBase.FindTarget via TestTurret subclass
     MissileHomingTests.cs       RotateTowards steering, dumb case, target-lost
     RailgunChargeAnimationTests.cs  4-stop quantized barrel color via chargeTimer
     FloatingTextTests.cs        rise, alpha fade, auto-destruction
+    DroneCollectionEndToEndTests.cs  core kill → drop → drone → collector → money
+    DroneAvoidanceTests.cs      drone skirts meteor outside safety radius
 tools/
   identity-scrub.py             pre-commit identity-leak check (see "Identity scrub" section)
   build-webgl.sh                headless Unity CLI wrapper: BuildScripts.BuildWebGL -> build/WebGL/ (prod)
