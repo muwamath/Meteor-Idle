@@ -1,0 +1,30 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8f6d96491fc1243e592fe05c26db05e4, type: 3}
+  m_Name: BayStats
+  m_EditorClassIdentifier: MeteorIdle::BayStats
+  reloadSpeed:
+    id: 0
+    displayName: Reload Speed
+    baseValue: 1
+    perLevelAdd: 0.25
+    baseCost: 40
+    costGrowth: 1.6
+    maxLevel: 0
+  dronesPerBay:
+    id: 1
+    displayName: Drones Per Bay
+    baseValue: 1
+    perLevelAdd: 1
+    baseCost: 150
+    costGrowth: 1.6
+    maxLevel: 2
