@@ -48,7 +48,7 @@ Assets/
     BaseSlot.cs                 slot root with two weapon-child refs + per-weapon panel routing
     SlotManager.cs              spawns 4 slots, per-weapon NextBuildCost(WeaponType)
     MeteorSpawner.cs            timer + pool, calm starting cadence
-    GameManager.cs              money singleton + OnMoneyChanged event, SetMoney for debug, CoreDrop registry
+    GameManager.cs              money singleton + OnMoneyChanged event, SetMoney for debug, CoreDrop pool + registry
     SimplePool.cs               generic MonoBehaviour pool
     FloatingText.cs             world-space "+$N" tween
     Drones/
