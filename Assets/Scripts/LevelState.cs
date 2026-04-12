@@ -1,6 +1,7 @@
 using System;
 using UnityEngine;
 
+[DefaultExecutionOrder(-100)]
 public class LevelState : MonoBehaviour
 {
     public static LevelState Instance { get; private set; }
@@ -72,6 +73,11 @@ public class LevelState : MonoBehaviour
             return;
         }
         Instance = this;
+    }
+
+    private void OnDestroy()
+    {
+        if (Instance == this) Instance = null;
     }
 
     /// <summary>

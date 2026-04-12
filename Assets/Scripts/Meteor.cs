@@ -42,10 +42,6 @@ public class Meteor : MonoBehaviour
     // lives here as a single named constant so future wiring is mechanical.
     public const int CoreBaseValue = 3;
 
-    public int CoreValue => LevelState.Instance != null
-        ? Mathf.RoundToInt(CoreBaseValue * LevelState.Instance.CoreValueMultiplier)
-        : CoreBaseValue;
-
     [SerializeField] private float fallSpeedMin = 0.4f;
     [SerializeField] private float fallSpeedMax = 0.67f;
     [SerializeField] private float driftMax = 0.4f;

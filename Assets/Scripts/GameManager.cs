@@ -29,6 +29,8 @@ public class GameManager : MonoBehaviour
     {
         if (coreDropPrefab != null)
             coreDropPool = new SimplePool<CoreDrop>(coreDropPrefab, transform, coreDropPoolPrewarm);
+        if (LevelState.Instance != null)
+            LevelState.Instance.OnBossFailed += ClearActiveDrops;
         OnMoneyChanged?.Invoke(Money);
     }
 
@@ -48,18 +50,16 @@ public class GameManager : MonoBehaviour
     {
         if (amount <= 0) return;
         Money += amount;
-        OnMoneyChanged?.Invoke(Money);
 
-        // Iter 4: auto-advance level when money reaches threshold
-        if (LevelState.Instance != null)
+        // Iter 4: auto-advance level(s) when money reaches threshold.
+        // While loop handles cases where income exceeds multiple thresholds.
+        while (LevelState.Instance != null)
         {
             int threshold = LevelState.Instance.Threshold;
-            if (threshold > 0 && LevelState.Instance.TryAdvance(Money))
-            {
-                Money -= threshold;
-                OnMoneyChanged?.Invoke(Money);
-            }
+            if (threshold <= 0 || !LevelState.Instance.TryAdvance(Money)) break;
+            Money -= threshold;
         }
+        OnMoneyChanged?.Invoke(Money);
     }
 
     public bool TrySpend(int amount)
@@ -96,13 +96,7 @@ public class GameManager : MonoBehaviour
         activeDrops.Remove(drop);
     }
 
-    private void OnEnable()
-    {
-        if (LevelState.Instance != null)
-            LevelState.Instance.OnBossFailed += ClearActiveDrops;
-    }
-
-    private void OnDisable()
+    private void OnDestroy()
     {
         if (LevelState.Instance != null)
             LevelState.Instance.OnBossFailed -= ClearActiveDrops;

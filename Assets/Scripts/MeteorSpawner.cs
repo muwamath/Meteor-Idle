@@ -22,7 +22,7 @@ public class MeteorSpawner : MonoBehaviour
         pool = new SimplePool<Meteor>(meteorPrefab, poolParent != null ? poolParent : transform, prewarm);
     }
 
-    private void OnEnable()
+    private void Start()
     {
         if (LevelState.Instance != null)
         {
@@ -31,7 +31,7 @@ public class MeteorSpawner : MonoBehaviour
         }
     }
 
-    private void OnDisable()
+    private void OnDestroy()
     {
         if (LevelState.Instance != null)
         {

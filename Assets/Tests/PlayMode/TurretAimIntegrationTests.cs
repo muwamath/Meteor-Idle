@@ -188,9 +188,9 @@ namespace MeteorIdle.Tests.PlayMode
         [UnityTest] public IEnumerator Hit_Missile_SpeedLvl3() =>
             RunHitTest(WeaponType.Missile, new Vector3(0f, -5f, 0f), new Vector3(0f, 5f, 0f), new Vector2(0.3f, -0.5f), speedLevel: 3, homingLevel: 0);
 
-        // Missile off-axis meteor
+        // Missile off-axis meteor (closer after Iter 4 base stat rebalance: speed 4→2)
         [UnityTest] public IEnumerator Hit_Missile_OffAxis() =>
-            RunHitTest(WeaponType.Missile, new Vector3(0f, -5f, 0f), new Vector3(5f, 8f, 0f), new Vector2(0.3f, -0.5f), speedLevel: 0, homingLevel: 0);
+            RunHitTest(WeaponType.Missile, new Vector3(0f, -5f, 0f), new Vector3(3f, 5f, 0f), new Vector2(0.3f, -0.5f), speedLevel: 0, homingLevel: 0);
 
         // User-reported scenario 2026-04-11: FireRate level 34 + Speed level 43
         // observed in-WebGL. User hypothesis: "the round is travelling so fast
