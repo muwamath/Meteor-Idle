@@ -85,7 +85,10 @@ namespace MeteorIdle.Tests.PlayMode
             int coresBefore = meteor.CoreVoxelCount;
             Assert.GreaterOrEqual(coresBefore, 1);
 
-            int moneyBefore = GameManager.Instance != null ? GameManager.Instance.Money : 0;
+            // SetupScene guarantees a GameManager — assert unconditionally so a
+            // missing instance fails loud rather than silently skipping.
+            Assert.IsNotNull(GameManager.Instance, "SetupScene must create a GameManager");
+            int moneyBefore = GameManager.Instance.Money;
 
             var result = meteor.ApplyBlast(meteor.GetVoxelWorldPosition(4, 5), 0.05f);
             Assert.AreEqual(1, result.totalPayout, "explosive pays $1 same frame");
@@ -102,13 +105,10 @@ namespace MeteorIdle.Tests.PlayMode
             Assert.Less(meteor.CoreVoxelCount, coresBefore,
                 "core count dropped after chain");
 
-            // Drain pass paid out the core's value via GameManager.AddMoney.
-            if (GameManager.Instance != null)
-            {
-                int moneyAfter = GameManager.Instance.Money;
-                Assert.Greater(moneyAfter, moneyBefore,
-                    "drain should have paid out the chain-killed core");
-            }
+            // Drain pass pays the core's value via GameManager.AddMoney.
+            int moneyAfter = GameManager.Instance.Money;
+            Assert.Greater(moneyAfter, moneyBefore,
+                "drain should have paid out the chain-killed core");
 
             TeardownScene();
         }

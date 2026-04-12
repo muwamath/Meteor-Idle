@@ -135,7 +135,7 @@ public static class VoxelMeteorGenerator
         if (goldMat != null) PlaceGold(rng, sizeT, kind, hp, material, goldMat, stoneMat);
 
         // --- Iter 2 Pass 3: explosives (never adjacent to other explosives) ---
-        if (explosiveMat != null) PlaceExplosives(rng, kind, hp, material, explosiveMat);
+        if (explosiveMat != null) PlaceExplosives(rng, kind, hp, material, explosiveMat, dirtMat);
 
         // --- texture paint ---
         texture = new Texture2D(TextureSize, TextureSize, TextureFormat.RGBA32, false)
@@ -191,23 +191,23 @@ public static class VoxelMeteorGenerator
         VoxelKind[,] kind, int[,] hp, VoxelMaterial[,] material, VoxelMaterial stoneMat,
         int targetSize)
     {
-        // Pick a random plain-Dirt seed cell (not core, not already stone).
+        // Pick a random plain-Dirt starting cell (not core, not already stone).
         var dirtCells = new List<(int x, int y)>();
         for (int y = 0; y < GridSize; y++)
             for (int x = 0; x < GridSize; x++)
                 if (kind[x, y] == VoxelKind.Dirt && material[x, y] != stoneMat)
                     dirtCells.Add((x, y));
         if (dirtCells.Count == 0) return;
-        var seed = dirtCells[rng.Next(dirtCells.Count)];
+        var startCell = dirtCells[rng.Next(dirtCells.Count)];
 
         // First cell goes in unconditionally — the 2-deep cap is a constraint
         // on growing into the third concentric layer, not on placing a single
         // standalone stone cell.
-        material[seed.x, seed.y] = stoneMat;
-        hp[seed.x, seed.y] = stoneMat.baseHp;
+        material[startCell.x, startCell.y] = stoneMat;
+        hp[startCell.x, startCell.y] = stoneMat.baseHp;
 
-        var clump = new HashSet<(int x, int y)> { seed };
-        var frontier = new List<(int x, int y)> { seed };
+        var clump = new HashSet<(int x, int y)> { startCell };
+        var frontier = new List<(int x, int y)> { startCell };
 
         int safety = 0;
         while (clump.Count < targetSize && frontier.Count > 0 && safety++ < 200)
@@ -339,7 +339,8 @@ public static class VoxelMeteorGenerator
 
     private static void PlaceExplosives(
         System.Random rng,
-        VoxelKind[,] kind, int[,] hp, VoxelMaterial[,] material, VoxelMaterial explosiveMat)
+        VoxelKind[,] kind, int[,] hp, VoxelMaterial[,] material,
+        VoxelMaterial explosiveMat, VoxelMaterial dirtMat)
     {
         // Even rarer than gold. weight=0.002 → 40% per try across 2 attempts.
         int maxExplosive = 2;
@@ -349,13 +350,14 @@ public static class VoxelMeteorGenerator
                 explosiveCount++;
         if (explosiveCount == 0) return;
 
-        // Plain-dirt candidate pool — never replace stone, gold, or core.
+        // Plain-dirt candidate pool — reference equality against dirtMat so a
+        // future material with displayName "X" can't accidentally pass the
+        // filter. Stone, gold, and cores are excluded by virtue of having
+        // their own material reference.
         var dirtCells = new List<(int x, int y)>();
         for (int y = 0; y < GridSize; y++)
             for (int x = 0; x < GridSize; x++)
-                if (kind[x, y] == VoxelKind.Dirt
-                    && material[x, y] != null
-                    && material[x, y].displayName == "Dirt")
+                if (kind[x, y] == VoxelKind.Dirt && material[x, y] == dirtMat)
                     dirtCells.Add((x, y));
 
         for (int e = 0; e < explosiveCount && dirtCells.Count > 0; e++)
