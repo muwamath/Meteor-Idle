@@ -2994,6 +2994,8 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::GameManager
   startingMoney: 0
+  coreDropPrefab: {fileID: 8482499409527416125, guid: f6348f67a35954342853691d2a5e233c, type: 3}
+  coreDropPoolPrewarm: 10
 --- !u!4 &1240747673
 Transform:
   m_ObjectHideFlags: 0

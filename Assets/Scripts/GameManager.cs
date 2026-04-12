@@ -6,7 +6,11 @@ public class GameManager : MonoBehaviour
     public static GameManager Instance { get; private set; }
 
     [SerializeField] private int startingMoney = 0;
+    [SerializeField] private CoreDrop coreDropPrefab;
+    [SerializeField] private int coreDropPoolPrewarm = 10;
     public int Money { get; private set; }
+
+    private SimplePool<CoreDrop> coreDropPool;
 
     public event Action<int> OnMoneyChanged;
 
@@ -23,7 +27,21 @@ public class GameManager : MonoBehaviour
 
     private void Start()
     {
+        if (coreDropPrefab != null)
+            coreDropPool = new SimplePool<CoreDrop>(coreDropPrefab, transform, coreDropPoolPrewarm);
         OnMoneyChanged?.Invoke(Money);
+    }
+
+    public CoreDrop GetPooledCoreDrop()
+    {
+        return coreDropPool?.Get();
+    }
+
+    public void ReleaseCoreDrop(CoreDrop drop)
+    {
+        if (drop == null) return;
+        activeDrops.Remove(drop);
+        coreDropPool?.Release(drop);
     }
 
     public void AddMoney(int amount)

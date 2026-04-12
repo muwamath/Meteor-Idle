@@ -403,10 +403,14 @@ public class Meteor : MonoBehaviour
     // the prefab is unwired (keeps Iter 1 test harnesses compiling).
     private void SpawnCoreDrop(int gx, int gy, VoxelMaterial mat)
     {
-        if (coreDropPrefab == null) return;
         if (mat == null) return;
         Vector3 pos = VoxelCenterToWorld(gx, gy);
-        var drop = Instantiate(coreDropPrefab, pos, Quaternion.identity);
+        CoreDrop drop = null;
+        if (GameManager.Instance != null)
+            drop = GameManager.Instance.GetPooledCoreDrop();
+        if (drop == null && coreDropPrefab != null)
+            drop = Instantiate(coreDropPrefab, pos, Quaternion.identity);
+        if (drop == null) return;
         drop.Spawn(pos, mat.payoutPerCell);
         if (GameManager.Instance != null)
             GameManager.Instance.RegisterDrop(drop);

@@ -71,6 +71,9 @@ public class CoreDrop : MonoBehaviour
     {
         alive = false;
         claimed = false;
-        gameObject.SetActive(false);
+        if (GameManager.Instance != null)
+            GameManager.Instance.ReleaseCoreDrop(this);
+        else
+            gameObject.SetActive(false);
     }
 }

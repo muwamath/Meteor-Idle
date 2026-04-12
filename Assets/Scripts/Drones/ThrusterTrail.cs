@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 
 [RequireComponent(typeof(SpriteRenderer))]
@@ -9,6 +10,8 @@ public class ThrusterTrail : MonoBehaviour
     [SerializeField] private Sprite particleSprite;
 
     private float emitTimer;
+
+    private static readonly Queue<TrailParticle> pool = new Queue<TrailParticle>();
 
     private void Update()
     {
@@ -25,23 +28,47 @@ public class ThrusterTrail : MonoBehaviour
 
     private void Emit()
     {
-        var go = new GameObject("TrailParticle");
-        go.transform.position = transform.position;
-        var sr = go.AddComponent<SpriteRenderer>();
-        sr.sprite = particleSprite;
-        sr.color = Color.white;
-        sr.sortingOrder = 3;
-        var p = go.AddComponent<TrailParticle>();
-        p.lifetime = particleLifetime;
+        TrailParticle p;
+        if (pool.Count > 0)
+        {
+            p = pool.Dequeue();
+            p.gameObject.SetActive(true);
+        }
+        else
+        {
+            var go = new GameObject("TrailParticle");
+            var sr = go.AddComponent<SpriteRenderer>();
+            sr.sprite = particleSprite;
+            sr.sortingOrder = 3;
+            p = go.AddComponent<TrailParticle>();
+        }
+        p.transform.position = transform.position;
+        p.Reset(particleLifetime);
+    }
+
+    public static void ReturnToPool(TrailParticle p)
+    {
+        if (p == null) return;
+        p.gameObject.SetActive(false);
+        pool.Enqueue(p);
     }
 }
 
 public class TrailParticle : MonoBehaviour
 {
-    public float lifetime = 0.3f;
+    private float lifetime = 0.5f;
     private float t;
     private SpriteRenderer sr;
+
     private void Awake() { sr = GetComponent<SpriteRenderer>(); }
+
+    public void Reset(float life)
+    {
+        lifetime = life;
+        t = 0f;
+        if (sr != null) { var c = sr.color; c.a = 1f; sr.color = c; }
+    }
+
     private void Update()
     {
         t += Time.deltaTime;
@@ -51,6 +78,6 @@ public class TrailParticle : MonoBehaviour
             c.a = Mathf.Clamp01(1f - t / lifetime);
             sr.color = c;
         }
-        if (t >= lifetime) Destroy(gameObject);
+        if (t >= lifetime) ThrusterTrail.ReturnToPool(this);
     }
 }
