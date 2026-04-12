@@ -49,13 +49,15 @@ Gear icon bottom-right opens a modal (`OptionsPanel`) showing `Build: <sha> · <
 
 ## Next Up
 
-### Bugfix — WebGL explosive voxel inconsistency
+### Bugfix — Drone bay click doesn't open upgrade overlay
 
-**Branch:** `iter/bugfix-webgl-explosions`
-**Size:** small, investigation + fix
+**Branch:** `iter/bugfix-drone-bay-click`
+**Size:** small, investigation + fix + test coverage
 **Depends on:** nothing
 
-In the live WebGL build, railgun rounds and missiles don't reliably detonate explosive voxels — sometimes they hit and nothing explodes. Works more consistently in the editor. Needs repro, root cause (timing? physics layer? blast LOS edge case in WebGL?), fix, and PlayMode test if tractable.
+Clicking on a drone bay does not open the `DroneUpgradePanel`. Needs repro, root cause (missing collider? click handler not wired? `PanelManager` suppression? z-ordering vs another click catcher?), and fix.
+
+**Also:** add PlayMode test coverage for clicking-to-open overlays and verifying the correct panel is shown. Menu/overlay interaction is currently untested and this bug slipped past both test suites — a click-and-verify helper should cover `DroneUpgradePanel`, `MissileUpgradePanel`, `RailgunUpgradePanel`, `BuildSlotPanel`, and `OptionsPanel` at minimum.
 
 ---
 
@@ -151,6 +153,7 @@ Play the game end-to-end and tune every scaling curve so the 150-level arc feels
 - Electric weapon (chain lightning or arc style)
 - Swarm weapon — drones/bees/small units with laser effects
 - Gravity gun — on hit grows larger consuming everything, then shrinks to nothing. Expansion/shrink rates upgradable.
+- Dirt eater — consumes dirt voxels (non-core material) on contact, clearing paths to cores without wasting damage on filler.
 
 ---
 
