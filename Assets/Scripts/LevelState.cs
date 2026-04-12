@@ -89,6 +89,11 @@ public class LevelState : MonoBehaviour
         return true;
     }
 
+    public void NotifyBossSpawned()
+    {
+        OnBossSpawned?.Invoke();
+    }
+
     public void BossDefeated()
     {
         currentLevel++;

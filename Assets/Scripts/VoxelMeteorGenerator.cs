@@ -97,6 +97,9 @@ public static class VoxelMeteorGenerator
         // --- core count + HP scale with sizeScale (Iter 1 formulas) ---
         float sizeT = Mathf.Clamp01((sizeScale - 0.525f) / (1.2f - 0.525f));
         int coreCount = Mathf.Clamp(Mathf.RoundToInt(Mathf.Lerp(1f, 4f, sizeT)), 1, 4);
+        // Iter 4: level scaling adds bonus cores
+        if (LevelState.Instance != null)
+            coreCount += LevelState.Instance.CoreCountBonus;
         int coreHp    = Mathf.Clamp(Mathf.RoundToInt(Mathf.Lerp(1f, 5f, sizeT)), 1, 5);
 
         // --- core placement: innermost live cells, deterministic shuffle ---

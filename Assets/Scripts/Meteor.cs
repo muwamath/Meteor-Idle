@@ -42,6 +42,10 @@ public class Meteor : MonoBehaviour
     // lives here as a single named constant so future wiring is mechanical.
     public const int CoreBaseValue = 5;
 
+    public int CoreValue => LevelState.Instance != null
+        ? Mathf.RoundToInt(CoreBaseValue * LevelState.Instance.CoreValueMultiplier)
+        : CoreBaseValue;
+
     [SerializeField] private float fallSpeedMin = 0.4f;
     [SerializeField] private float fallSpeedMax = 0.67f;
     [SerializeField] private float driftMax = 0.4f;
@@ -67,6 +71,8 @@ public class Meteor : MonoBehaviour
     private CircleCollider2D col;
     private Vector2 velocity;
     private MeteorSpawner owner;
+    private bool isBoss;
+    private float bossSpeed;
 
     // Parallel voxel state: kind[,] for what the cell is (Empty/Dirt/Core),
     // hp[,] for how many more hits before it clears. Phase 1 keeps instant-
@@ -97,6 +103,13 @@ public class Meteor : MonoBehaviour
     public int AliveVoxelCount => aliveCount;
     public Vector2 Velocity => velocity;
     public bool IsAlive => !dead && !fading && aliveCount > 0 && gameObject.activeInHierarchy;
+    public bool IsBoss => isBoss;
+
+    public void SetBossMode(float fallSpeed)
+    {
+        isBoss = true;
+        bossSpeed = fallSpeed;
+    }
 
     // True when at least one Core cell is still alive. Turrets only lock
     // onto meteors where this is true — dirt-only remnants are ignored and
@@ -212,6 +225,8 @@ public class Meteor : MonoBehaviour
         dead = false;
         fading = false;
         fadeTimer = 0f;
+        isBoss = false;
+        bossSpeed = 0f;
         transform.position = position;
         transform.rotation = Quaternion.identity;
         transform.localScale = Vector3.one * sizeScale;
@@ -230,6 +245,19 @@ public class Meteor : MonoBehaviour
             VoxelMeteorGenerator.Generate(seed, sizeScale, out kind, out hp, out texture, out aliveCount);
             material = null;
         }
+        // Iter 4: apply HP multiplier from level scaling
+        if (LevelState.Instance != null)
+        {
+            float hpMult = LevelState.Instance.HpMultiplier;
+            if (hpMult > 1f)
+            {
+                for (int x = 0; x < VoxelMeteorGenerator.GridSize; x++)
+                    for (int y = 0; y < VoxelMeteorGenerator.GridSize; y++)
+                        if (hp[x, y] > 0)
+                            hp[x, y] = Mathf.CeilToInt(hp[x, y] * hpMult);
+            }
+        }
+
         sprite = Sprite.Create(
             texture,
             new Rect(0, 0, VoxelMeteorGenerator.TextureSize, VoxelMeteorGenerator.TextureSize),
@@ -255,7 +283,10 @@ public class Meteor : MonoBehaviour
         // explosives queue for the NEXT frame so the cascade is visible.
         if (pendingDetonations.Count > 0) DrainPendingDetonations();
         if (dead) return; // detonation chain may have killed the meteor
-        transform.position += (Vector3)(velocity * Time.deltaTime);
+        if (isBoss)
+            transform.position += new Vector3(0f, -bossSpeed * Time.deltaTime, 0f);
+        else
+            transform.position += (Vector3)(velocity * Time.deltaTime);
 
         if (!fading && transform.position.y < fadeStartY)
         {
@@ -374,6 +405,8 @@ public class Meteor : MonoBehaviour
 
         if (aliveCount <= 0)
         {
+            if (isBoss)
+                LevelState.Instance?.BossDefeated();
             dead = true;
             owner?.Release(this);
         }
@@ -411,7 +444,10 @@ public class Meteor : MonoBehaviour
         if (drop == null && coreDropPrefab != null)
             drop = Instantiate(coreDropPrefab, pos, Quaternion.identity);
         if (drop == null) return;
-        drop.Spawn(pos, mat.payoutPerCell);
+        int value = mat.payoutPerCell;
+        if (LevelState.Instance != null)
+            value = Mathf.RoundToInt(value * LevelState.Instance.CoreValueMultiplier);
+        drop.Spawn(pos, Mathf.Max(1, value));
         if (GameManager.Instance != null)
             GameManager.Instance.RegisterDrop(drop);
     }
@@ -486,6 +522,8 @@ public class Meteor : MonoBehaviour
 
         if (aliveCount <= 0)
         {
+            if (isBoss)
+                LevelState.Instance?.BossDefeated();
             dead = true;
             owner?.Release(this);
         }
@@ -603,6 +641,8 @@ public class Meteor : MonoBehaviour
 
         if (aliveCount <= 0)
         {
+            if (isBoss)
+                LevelState.Instance?.BossDefeated();
             dead = true;
             owner?.Release(this);
         }
@@ -758,6 +798,8 @@ public class Meteor : MonoBehaviour
 
     private void ReturnSilently()
     {
+        if (isBoss)
+            LevelState.Instance?.BossFailed();
         dead = true;
         owner?.Release(this);
     }
