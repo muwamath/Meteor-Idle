@@ -5154,7 +5154,7 @@ MonoBehaviour:
   hpScalePerLevel: 0.02
   valueScalePerLevel: 0.015
   coreCountBonusEveryNLevels: 25
-  bossFallSpeed: 0.3
+  bossFallSpeed: 0.15
   bossSize: 1.2
 --- !u!1 &1262653145
 GameObject:

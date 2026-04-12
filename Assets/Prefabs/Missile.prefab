@@ -5006,6 +5006,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: a1d12ced2f2c14cceaf600f6a116daf5, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Missile
-  lifetime: 5
+  lifetime: 12
   explosionPrefab: {fileID: 7878588017857104243, guid: 4c6e1361b79bf4fc0a19bdb241e808fd, type: 3}
   floatingTextPrefab: {fileID: 9160137815721794486, guid: a747c6ea653b14cdfb23a4f142f86ce2, type: 3}
