@@ -2,7 +2,7 @@
 
 ## What this is
 
-A 2D Unity 6 idle game. Voxel meteors fall; the bottom row has 4 base slots (weapons), 2 drone bays, and 1 collector (rock grinder). Weapons auto-fire to destroy meteor voxels. Core voxels spawn CoreDrop entities that collector drones retrieve and deliver to the Collector for cash. Two weapon types (Missile and Railgun), collector drones with custom physics. Desktop/laptop 16:9. Early development — no persistence, no audio.
+A 2D Unity 6 idle game with 150-level progression. Voxel meteors fall; the bottom row has 4 base slots (weapons), 2 drone bays, and 1 collector (rock grinder). Weapons auto-fire to destroy meteor voxels. Core voxel kills advance the level; CoreDrops are collected by drones and delivered to the Collector for money (upgrades only). Boss at every 10th level — slow-falling, dark/crimson, must kill to advance. Two weapon types (Missile and Railgun), collector drones with custom physics. Desktop/laptop 16:9. Early development — no persistence, no audio.
 
 ## Tech stack
 
@@ -21,18 +21,19 @@ Assets/
   Prefabs/                BaseSlot, Meteor, Missile, RailgunRound/Streak, CollectorDrone, DroneBay, Collector, CoreDrop, UI prefabs
   Scenes/Game.unity       the one scene
   Scripts/
+    LevelState.cs           level progression singleton (core-kill advancement, boss gating, difficulty scaling)
     Meteor.cs, VoxelMeteorGenerator.cs, Missile.cs
     TurretBase.cs (abstract), MissileTurret.cs, RailgunTurret.cs
     BaseSlot.cs, SlotManager.cs, MeteorSpawner.cs, GameManager.cs, SimplePool.cs, FloatingText.cs
     Drones/               Collector, CollectorDrone, CoreDrop, DroneBay, DroneBody, DroneStats, BayStats, BayManager, ThrusterTrail
     Weapons/              WeaponType, RailgunRound, RailgunStreak
     Data/                 TurretStats, RailgunStats
-    Debug/DebugOverlay.cs
-    UI/                   MoneyDisplay, MissileUpgradePanel, RailgunUpgradePanel, DroneUpgradePanel, BuildSlotPanel, UpgradeButton, ModalClickCatcher, PanelManager
+    Debug/DebugOverlay.cs (money setter + level picker)
+    UI/                   MoneyDisplay, LevelStripUI, LevelCell, MissileUpgradePanel, RailgunUpgradePanel, DroneUpgradePanel, BuildSlotPanel, UpgradeButton, ModalClickCatcher, PanelManager
   Editor/BuildScripts.cs  BuildWebGL + BuildWebGLDev entry points
 Tests/
-  EditMode/               ~190 tests, fast (~2s), pure logic
-  PlayMode/               ~42 tests, slower (~16s), real physics/time
+  EditMode/               ~223 tests, fast (~7s), pure logic
+  PlayMode/               ~47 tests, slower (~46s), real physics/time
 tools/
   identity-scrub.py       pre-commit identity-leak check
   build-webgl.sh          prod build (headless, editor must be closed)
@@ -68,7 +69,9 @@ docs/
 
 **Identity rules.** Repo-local git config only — never touch global. Remote uses SSH alias `github-muwamath`. No `Co-Authored-By:` trailers. Never use `gh` CLI on this repo. Run `python3 tools/identity-scrub.py` before every commit.
 
-**Spawner tuning.** `initialInterval=12s`, `minInterval=4.5s`, `rampDurationSeconds=180s`. Deliberately calm — don't regress.
+**Spawner tuning.** Base intervals scale with level via `LevelState` (level 1: 15s initial/8s min, level 150: 5s/2s). Within-level ramp still applies over `rampDurationSeconds=180s`.
+
+**Level progression.** Core voxel kills advance levels (not money). Money is purely for upgrades. Boss every 10th level (spawns alone, slow fall, dark/crimson palette). Boss failure = back 2 levels. `LevelState` singleton drives all difficulty scaling.
 
 ## Unity MCP gotchas
 
@@ -80,7 +83,7 @@ docs/
 
 ## Debug overlay
 
-Editor-only, backquote toggle, pauses via `Time.timeScale = 0f`. Extend the existing `DebugOverlay.cs` — don't create new debug systems.
+Editor-only, backquote toggle, pauses via `Time.timeScale = 0f`. Two fields: money setter and level picker. Extend the existing `DebugOverlay.cs` — don't create new debug systems.
 
 ## Before committing / pushing
 

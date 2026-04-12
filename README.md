@@ -10,7 +10,7 @@ Runs in any modern browser. The WebGL build is Brotli-compressed with Unity's de
 
 ## Status
 
-Early in development. **4 base slots, 2 weapons (Missile and Railgun), 2 drone bays, 1 Collector**, no persistence, no audio. Core loop is playable end-to-end: buy weapon slots, build either weapon, fire at meteors, upgrade weapons. Core voxels spawn floating drops that collector drones retrieve and deliver to the rock-grinder Collector for cash. The economy is currently flattened to **$1 per purchase** for fast development iteration; balance pass comes later.
+Early in development. **150-level progression with boss fights every 10 levels. 4 base slots, 2 weapons (Missile and Railgun), 2 drone bays, 1 Collector**, no persistence, no audio. Core loop is playable end-to-end: destroy core voxels to advance levels, collect CoreDrops via drones for money, spend money on upgrades. Weapons start weak (slow missiles, glacial railgun) and grow powerful over 150 levels. Boss meteors spawn alone at every 10th level — slow-falling, dark/crimson, must be fully destroyed to advance. Boss failure sends you back 2 levels. A scrolling 5-cell level strip at the top shows progress.
 
 ## Running
 
@@ -55,7 +55,8 @@ The deploy fires after a branch has been fast-forwarded to `main` and verified e
 - Regular voxel destruction earns **$1 per voxel destroyed**. Core voxels don't pay directly — they spawn floating red CoreDrop entities that drift downward slowly.
 - **Collector drones** launch from their bays, fly to CoreDrops, pick them up, deliver them to the Collector (the gold-toothed rock grinder at center), then loop back for more until their battery runs low. When low on battery, drones return to their bay to recharge. Each drone has a unique trail color so you can track them. Drone bays show the number of drones currently docked.
 - Meteors that drift past the base level fade out without penalty (yet).
-- Press **`` ` ``** (backquote) in the editor while playing, or in a local WebGL dev build served via `tools/serve-webgl-dev.sh`, to open a debug overlay that pauses the game and lets you tweak values (currently: set current money, full game reset). The debug overlay is gated on `UNITY_EDITOR || DEVELOPMENT_BUILD` and is stripped from the production build deployed to GitHub Pages.
+- The **level strip** at the top of the screen shows your current level, progress toward the next level (core kills / threshold), and upcoming levels. Boss levels (every 10th) show a warning icon.
+- Press **`` ` ``** (backquote) in the editor while playing, or in a local WebGL dev build served via `tools/serve-webgl-dev.sh`, to open a debug overlay that pauses the game and lets you tweak values (set money, set level, full game reset). The debug overlay is gated on `UNITY_EDITOR || DEVELOPMENT_BUILD` and is stripped from the production build deployed to GitHub Pages.
 
 ### Weapons
 
@@ -90,7 +91,7 @@ The two weapons feel mechanically different: missiles are spammy and area-of-eff
 - C# game code in the **`MeteorIdle`** assembly definition
 - New Input System
 - TextMeshPro for UI
-- **Unity Test Framework**: 190 EditMode tests + 42 PlayMode tests covering voxel destruction logic, per-weapon stats, build-cost escalation, spawner cadence ramp, railgun chain, turret targeting, missile homing, railgun charge animation, floating-text, drone physics (DroneBody integrator), drone state machine (8 states), drone/bay stats, DroneBay door animation, CoreDrop lifecycle, paysOnBreak isolation, end-to-end drone collection, and drone meteor avoidance
+- **Unity Test Framework**: 223 EditMode tests + 47 PlayMode tests covering voxel destruction logic, per-weapon stats, build-cost escalation, spawner cadence ramp, railgun chain, turret targeting, missile homing, railgun charge animation, floating-text, drone physics, drone state machine, drone/bay stats, DroneBay door animation, CoreDrop lifecycle, paysOnBreak isolation, end-to-end drone collection, drone meteor avoidance, level progression (core-kill advancement, boss gating, boss failure/success, difficulty multipliers)
 
 All art is procedurally generated at edit time by C# editor scripts — there are no bitmap files authored in external tools. The voxel meteors, turret barrels, missiles, railgun bullets, railgun streaks, starfield, collector drone (plus-shape with red tips), drone bay (metallic box with doors), Collector grinder (gold teeth), CoreDrop, and particle sprites are all PNGs written by Unity at build time from procedural code. Hard pixel edges, 1-pixel dark/light edges, no smooth gradients — strict voxel aesthetic throughout.
 
@@ -119,10 +120,11 @@ Assets/
     Data/                       TurretStats.cs, RailgunStats.cs
     UI/                         MissileUpgradePanel, RailgunUpgradePanel, DroneUpgradePanel,
                                 BuildSlotPanel, PanelManager, ...
-    Debug/DebugOverlay.cs       editor-only money setter + reset
+    LevelState.cs               level progression (core-kill advancement, boss, difficulty scaling)
+    Debug/DebugOverlay.cs       editor-only money setter, level picker, reset
 Tests/
-  EditMode/                     189 logic tests (~2s runtime)
-  PlayMode/                     42 physics/integration tests (~40s runtime)
+  EditMode/                     223 logic tests (~7s runtime)
+  PlayMode/                     47 physics/integration tests (~46s runtime)
 tools/
   identity-scrub.py             pre-commit identity-leak check
   build-webgl.sh                headless Unity CLI wrapper for the prod WebGL build
@@ -145,6 +147,8 @@ docs/superpowers/
 - [MVP design spec](docs/superpowers/specs/2026-04-10-meteor-idle-mvp-design.md) — original smooth-sprite MVP (superseded by the voxel spec)
 - [Drone economy design](docs/superpowers/specs/2026-04-11-drone-economy-design.md) — Iter 3: CoreDrop entities, collector drones, Collector grinder, DroneBay
 - [Drone economy plan](docs/superpowers/plans/2026-04-11-drone-economy.md) — 10-phase task-by-task implementation
+- [Levels/progression design](docs/superpowers/specs/2026-04-12-levels-progression-design.md) — Iter 4: 150-level progression, boss fights, core-kill advancement
+- [Levels/progression plan](docs/superpowers/plans/2026-04-12-levels-progression.md) — 14-task implementation plan
 
 ## License
 
