@@ -18,7 +18,7 @@ public class CollectorDrone : MonoBehaviour
     private float dockRadius;
     private float seekMaxRange = 30f;
 
-    [SerializeField] private float avoidanceSafetyMargin = 0.35f;
+    [SerializeField] private float avoidanceSafetyMargin = 0.8f;
     private MeteorSpawner cachedSpawner;
 
     public void SetMeteorSpawner(MeteorSpawner spawner) { cachedSpawner = spawner; }

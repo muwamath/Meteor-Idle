@@ -47,7 +47,8 @@ public class DroneBody
         float dist = away.magnitude;
         float safety = obstacleRadius + safetyMargin;
         if (dist >= safety || dist < 0.0001f) return;
-        float intensity = 1f - (dist / safety);
+        float t = 1f - (dist / safety);
+        float intensity = t * t * 3f;
         DesiredThrust += (away / dist) * intensity;
     }
 }

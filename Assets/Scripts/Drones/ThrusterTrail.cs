@@ -4,8 +4,8 @@ using UnityEngine;
 public class ThrusterTrail : MonoBehaviour
 {
     [SerializeField] private CollectorDrone owner;
-    [SerializeField] private float emitIntervalAtFullThrust = 0.05f;
-    [SerializeField] private float particleLifetime = 0.3f;
+    [SerializeField] private float emitIntervalAtFullThrust = 0.02f;
+    [SerializeField] private float particleLifetime = 0.5f;
     [SerializeField] private Sprite particleSprite;
 
     private float emitTimer;
@@ -16,7 +16,7 @@ public class ThrusterTrail : MonoBehaviour
         float velocityMagnitude = owner.Body.Velocity.magnitude;
         if (velocityMagnitude < 0.1f) return;
         float interval = emitIntervalAtFullThrust
-            * Mathf.Max(0.2f, owner.Body.ThrustCap / Mathf.Max(0.01f, velocityMagnitude));
+            * Mathf.Clamp(owner.Body.ThrustCap / Mathf.Max(0.01f, velocityMagnitude), 0.5f, 2f);
         emitTimer += Time.deltaTime;
         if (emitTimer < interval) return;
         emitTimer = 0f;
