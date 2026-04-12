@@ -40,4 +40,14 @@ public class DroneBody
     {
         Velocity += deltaVelocity;
     }
+
+    public void ApplyAvoidance(Vector2 obstaclePosition, float obstacleRadius, float safetyMargin)
+    {
+        Vector2 away = Position - obstaclePosition;
+        float dist = away.magnitude;
+        float safety = obstacleRadius + safetyMargin;
+        if (dist >= safety || dist < 0.0001f) return;
+        float intensity = 1f - (dist / safety);
+        DesiredThrust += (away / dist) * intensity;
+    }
 }

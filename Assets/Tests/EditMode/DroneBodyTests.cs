@@ -48,6 +48,25 @@ namespace MeteorIdle.Tests.Editor
         }
 
         [Test]
+        public void ApplyAvoidance_AddsRepulsionAwayFromObstacle()
+        {
+            var body = new DroneBody(Vector2.zero, thrustCap: 4f, dampingPerSec: 0f);
+            body.DesiredThrust = Vector2.zero;
+            body.ApplyAvoidance(new Vector2(1f, 0f), obstacleRadius: 0.5f, safetyMargin: 1f);
+            Assert.Less(body.DesiredThrust.x, 0f, "avoidance pushes drone away from obstacle");
+            Assert.AreEqual(0f, body.DesiredThrust.y, 0.01f);
+        }
+
+        [Test]
+        public void ApplyAvoidance_OutsideSafetyRadius_NoChange()
+        {
+            var body = new DroneBody(Vector2.zero, thrustCap: 4f, dampingPerSec: 0f);
+            body.DesiredThrust = Vector2.right;
+            body.ApplyAvoidance(new Vector2(10f, 0f), obstacleRadius: 0.5f, safetyMargin: 1f);
+            Assert.AreEqual(1f, body.DesiredThrust.x, 0.01f, "far obstacles do not alter thrust");
+        }
+
+        [Test]
         public void LimpHomeMode_CutsEffectiveThrustCapTo25Percent()
         {
             var body = new DroneBody(Vector2.zero, thrustCap: 8f, dampingPerSec: 0f);
