@@ -1,6 +1,6 @@
 # Meteor Idle — Iteration Roadmap
 
-Living document. Last revised: 2026-04-12 (Iter 3 + polish shipped).
+Living document. Last revised: 2026-04-12 (Iter 4 spec written, Iter 5 tuning added).
 
 This is the ordered plan for the next several iterations, pulled from `todo.md` (sections above `# Future`). Each iteration is a branch (`iter/<name>`) with its own spec + plan when it's large enough to warrant one. Sized for the project's per-branch overhead (tests, play verify, code-reviewer, WebGL deploy).
 
@@ -21,7 +21,9 @@ Iter 2: Asteroid types                 ──┤  │  rides on cores
                                          │  │
 Iter 3: Economy rework (drones)        ──┤  │  needs cores (cores float, drones collect)
                                          │  │
-Iter 4: Levels / progression / boss    ──┘  │  needs cores (boss core) + economy (reward curve)
+Iter 4: Levels / progression / boss    ──┤  │  needs cores (boss core) + economy (reward curve)
+                                         │  │
+Iter 5: Tuning pass                    ──┘  │  needs Iter 4 (all knobs must exist)
                                              │
                               ── ship order ─┘
 ```
@@ -163,41 +165,59 @@ All deferred items from code review were addressed:
 ## Iter 4 — Levels / progression / boss
 
 **Branch:** `iter/levels`
-**Size:** full spec + plan, ~8 phases
-**Depends on:** Iter 1 (core-bearing boss), Iter 3 (money curve to tune against)
+**Size:** full spec + plan
+**Depends on:** Iter 1 (core voxels), Iter 3 (drone economy)
+**Spec:** [docs/superpowers/specs/2026-04-12-levels-progression-design.md](specs/2026-04-12-levels-progression-design.md)
 
-### Goal
+### What it delivers
 
-A level progression system. Levels group into blocks of 10, every 10th level is a boss asteroid. Beating the boss advances the block. Failing the boss teleports you to the start of the block to farm. Player can manually step levels back/forward via top-bar arrows.
-
-### Scope
-
-- `LevelState` singleton (or ScriptableObject + runtime) — current level, current block, kill count toward next level.
-- Top-bar UI — level number with left/right arrows. Left always works (farm easier); right is gated by kill count.
-- `MeteorSpawner` reads level to scale cadence, count, HP, core value.
-- Boss asteroid — special `AsteroidType` with huge HP, giant grid, multi-core. Spawns alone at level-10-of-block. Failure = teleport to block start.
-- Kill-count gating — N core-kills to advance a level. N scales by level.
-- Tests: level progression math, boss spawn gating, fallback teleport.
-- Still no persistence (that's in `# Future`).
-
-### Phases (8, respecting the sizing rule)
-
-1. **`LevelState` + current-level spawner scaling (cadence, HP, core value).** No UI yet. EditMode tests for scaling curves. ~3 files.
-2. **Top-bar UI with left/right arrows + level label.** Manual level-step buttons wired to `LevelState`. ~2 files.
-3. **Kill-count gating for forward progression.** Right arrow enabled only after N kills this level. ~2 files.
-4. **Boss asteroid data + spawn at level 10 of each block.** Big grid, multi-core, high HP. Riffs on `AsteroidType` from Iter 2. ~3 files.
-5. **Boss failure teleport back to block start.** Triggered when the boss falls off-screen un-killed. Clears in-flight meteors. ~2 files.
-6. **Tuning pass — level 1 feels gentle, level 10 boss feels climactic.** Data-only.
-7. **Tests — level progression, boss gating, fallback. PlayMode smoke test of a full block.** ~2 test files.
-8. **Code-reviewer + manual play verify + merge + WebGL deploy.**
+- **150-level progression.** Blocks of 10, boss gates every 10th level. Automatic core-threshold advancement — cores are shared currency for upgrades and level progression.
+- **Boss asteroid.** Slow-falling single meteor, spawns alone (normal spawning paused). Kill to advance, fail = restart block. Distinct visual (dark/crimson voxel palette).
+- **Level progress strip UI.** 5-cell scrolling strip at top of screen. Current level 3x wide with rotating target animation and green progress overlay. Boss cells show warning icon. Meteors pass through the strip. Money display moves below.
+- **LevelState singleton.** Drives spawner scaling (cadence, size, HP, core value, core count) and boss spawn/fail/success flow.
+- **Base stat rebalance.** All weapons, drones, and meteors start weak (3-6 voxel pebbles, slow missiles, glacial railgun). Reasonable defaults — not final tuning.
 
 ### Manual play-verify gates
 
-- Level 1 feels slow and easy (per the user's tuning preference).
-- Level-up happens at a satisfying pace, not a grind.
-- Bosses feel different from normal asteroids.
-- Fallback teleport is visible and not jarring.
-- Top-bar level UI is readable at 16:9 without overlapping other UI.
+- Level 1 feels weak and small (pebbles, slow weapons).
+- Non-boss advancement triggers automatically when threshold is met.
+- Boss spawns alone at level 10, falls very slowly, visually distinct.
+- Boss failure resets to block start, boss success advances to next block.
+- Level strip UI scrolls correctly, progress overlay fills, boss cells show warning.
+- Money display reads correctly below the strip.
+
+---
+
+## Iter 5 — Tuning pass
+
+**Branch:** `iter/tuning`
+**Size:** small, data-focused. No new systems.
+**Depends on:** Iter 4 (all scaling knobs must exist)
+
+### Goal
+
+Play Iter 4 end-to-end and tune every scaling curve so the 150-level arc feels right. This is the iteration where "reasonable defaults" become "fun defaults."
+
+### Scope
+
+- **Threshold curve** — baseCost, growthRate for level advancement costs.
+- **Spawn rate curve** — initialInterval/minInterval per level.
+- **Meteor scaling** — size, core HP, stone HP, core count per level.
+- **Core value curve** — reward scaling to keep pace with costs.
+- **Weapon base stats** — missile speed/damage/blast, railgun fire rate/speed/weight.
+- **Upgrade costs** — baseCost/costGrowth per stat across all weapons and drones.
+- **Boss scaling** — HP, core count, fall speed per block.
+
+All changes are ScriptableObject/SerializeField values. No new code, no new systems. Test coverage already exists from Iter 4.
+
+### Verify gates
+
+- Level 1 feels like poking pebbles with a stick.
+- By level 30 the player feels noticeably stronger.
+- By level 80 the game is visibly more intense.
+- By level 150 the screen is full of action — fun and bombastic.
+- Bosses feel like events, not speedbumps or walls.
+- Upgrade vs. advancement tension feels real throughout.
 
 ---
 

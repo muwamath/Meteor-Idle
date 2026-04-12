@@ -228,4 +228,4 @@ event Action OnBossFailed;
 
 Err on fun and bombastic over realism. The player should feel good about every upgrade. Bosses should feel like events. The 150-level arc should be a slow burn where you notice yourself getting stronger every ~10 levels.
 
-Exact numbers for all scaling curves ship as `[SerializeField]` or ScriptableObject fields and get adjusted during the tuning phase. The spec provides approximate targets and ratios, not final values.
+**This iteration ships the system with reasonable defaults, not final tuning.** All scaling curves (threshold, HP, core value, spawn rate, weapon base stats) are exposed as `[SerializeField]` or ScriptableObject fields. The spec provides approximate targets and ratios, not final values. A dedicated tuning iteration (Iter 5 on the roadmap) follows after playtesting the mechanics end-to-end.
