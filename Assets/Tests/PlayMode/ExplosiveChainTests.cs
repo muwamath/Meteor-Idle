@@ -105,10 +105,14 @@ namespace MeteorIdle.Tests.PlayMode
             Assert.Less(meteor.CoreVoxelCount, coresBefore,
                 "core count dropped after chain");
 
-            // Drain pass pays the core's value via GameManager.AddMoney.
+            // Iter 3: cores have paysOnBreak=false, so chain-killing a core
+            // no longer credits money directly. Task 1.4 will wire a CoreDrop
+            // spawn on the same code path. For now, assert money DIDN'T move
+            // from the core kill — explosive's $1 was paid on the direct hit
+            // (same-frame), not on the drain pass.
             int moneyAfter = GameManager.Instance.Money;
-            Assert.Greater(moneyAfter, moneyBefore,
-                "drain should have paid out the chain-killed core");
+            Assert.AreEqual(moneyBefore, moneyAfter,
+                "Iter 3: chain-killed cores must not pay directly (paysOnBreak=false)");
 
             TeardownScene();
         }

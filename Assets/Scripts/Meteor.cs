@@ -381,7 +381,10 @@ public class Meteor : MonoBehaviour
         int idx = materialRegistry.IndexOf(mat);
         if (idx < 0) return;
         result.countByMaterialIndex[idx]++;
-        result.totalPayout += mat.payoutPerCell;
+        // Iter 3: only materials flagged paysOnBreak=true contribute to the
+        // direct-payout sum. Cores (paysOnBreak=false) go through SpawnCoreDrop
+        // and deposit via the collector drone loop.
+        if (mat.paysOnBreak) result.totalPayout += mat.payoutPerCell;
     }
 
     // Iter 2: drain the pending-detonation queue. Each cell in the queue is
