@@ -93,7 +93,7 @@ namespace MeteorIdle.Tests.PlayMode
         }
 
         [UnityTest]
-        public IEnumerator BossFailed_ResetsToBlockStart()
+        public IEnumerator BossFailed_GoesBack2Levels()
         {
             yield return SetupWithLevelState();
 
@@ -103,7 +103,7 @@ namespace MeteorIdle.Tests.PlayMode
 
             LevelState.Instance.BossFailed();
 
-            Assert.AreEqual(11, LevelState.Instance.CurrentLevel);
+            Assert.AreEqual(18, LevelState.Instance.CurrentLevel);
             Assert.AreEqual(0, LevelState.Instance.CoreKillsThisBlock);
 
             TeardownWithLevelState();

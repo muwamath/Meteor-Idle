@@ -117,8 +117,7 @@ public class LevelState : MonoBehaviour
 
     public void BossFailed()
     {
-        int blockStart = CurrentBlock * 10 + 1;
-        currentLevel = blockStart;
+        currentLevel = Mathf.Max(1, currentLevel - 2);
         coreKillsThisBlock = 0;
         OnBossFailed?.Invoke();
         OnLevelChanged?.Invoke();

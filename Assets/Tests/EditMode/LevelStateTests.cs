@@ -171,19 +171,19 @@ namespace MeteorIdle.Tests.Editor
         }
 
         [Test]
-        public void BossFailed_Block1_ResetsToLevel1()
+        public void BossFailed_Level10_GoesBackToLevel8()
         {
             SetLevel(10);
             _state.BossFailed();
-            Assert.AreEqual(1, _state.CurrentLevel);
+            Assert.AreEqual(8, _state.CurrentLevel);
         }
 
         [Test]
-        public void BossFailed_Block2_ResetsToLevel11()
+        public void BossFailed_Level20_GoesBackToLevel18()
         {
             SetLevel(20);
             _state.BossFailed();
-            Assert.AreEqual(11, _state.CurrentLevel);
+            Assert.AreEqual(18, _state.CurrentLevel);
         }
 
         [Test]
