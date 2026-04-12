@@ -15,42 +15,42 @@ MonoBehaviour:
   fireRate:
     id: 0
     displayName: Fire Rate
-    baseValue: 0.5
+    baseValue: 0.3
     perLevelAdd: 0.15
-    baseCost: 1
-    costGrowth: 1
+    baseCost: 3
+    costGrowth: 1.5
   rotationSpeed:
     id: 1
     displayName: Rotation Speed
-    baseValue: 30
+    baseValue: 20
     perLevelAdd: 15
-    baseCost: 1
-    costGrowth: 1
+    baseCost: 3
+    costGrowth: 1.5
   missileSpeed:
     id: 2
     displayName: Missile Speed
-    baseValue: 4
+    baseValue: 2
     perLevelAdd: 0.6
-    baseCost: 1
-    costGrowth: 1
+    baseCost: 3
+    costGrowth: 1.5
   damage:
     id: 3
     displayName: Damage
     baseValue: 1
     perLevelAdd: 1
-    baseCost: 1
-    costGrowth: 1
+    baseCost: 3
+    costGrowth: 1.5
   blastRadius:
     id: 4
     displayName: Blast Radius
-    baseValue: 0.1
+    baseValue: 0.05
     perLevelAdd: 0.25
-    baseCost: 1
-    costGrowth: 1
+    baseCost: 3
+    costGrowth: 1.5
   homing:
     id: 5
     displayName: Homing
     baseValue: 0
     perLevelAdd: 30
-    baseCost: 1
-    costGrowth: 1
+    baseCost: 3
+    costGrowth: 1.5

@@ -40,7 +40,7 @@ public class Meteor : MonoBehaviour
     // Money paid out per core voxel destroyed. Dirt voxels pay nothing.
     // Iter 2 will lift this into a per-type asteroid field; until then it
     // lives here as a single named constant so future wiring is mechanical.
-    public const int CoreBaseValue = 5;
+    public const int CoreBaseValue = 3;
 
     public int CoreValue => LevelState.Instance != null
         ? Mathf.RoundToInt(CoreBaseValue * LevelState.Instance.CoreValueMultiplier)

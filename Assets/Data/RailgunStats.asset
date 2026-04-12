@@ -15,40 +15,40 @@ MonoBehaviour:
   fireRate:
     id: 0
     displayName: Fire Rate
-    baseValue: 0.2
+    baseValue: 0.1
     perLevelAdd: 0.05
-    baseCost: 1
-    costGrowth: 1
+    baseCost: 3
+    costGrowth: 1.5
     maxLevel: 0
   rotationSpeed:
     id: 1
     displayName: Rotation Speed
-    baseValue: 20
+    baseValue: 15
     perLevelAdd: 12
-    baseCost: 1
-    costGrowth: 1
+    baseCost: 3
+    costGrowth: 1.5
     maxLevel: 0
   speed:
     id: 2
     displayName: Speed
-    baseValue: 6
+    baseValue: 4
     perLevelAdd: 3
-    baseCost: 1
-    costGrowth: 1
+    baseCost: 3
+    costGrowth: 1.5
     maxLevel: 0
   weight:
     id: 3
     displayName: Weight
-    baseValue: 4
+    baseValue: 2
     perLevelAdd: 2
-    baseCost: 1
-    costGrowth: 1
+    baseCost: 3
+    costGrowth: 1.5
     maxLevel: 0
   caliber:
     id: 4
     displayName: Caliber
     baseValue: 1
     perLevelAdd: 1
-    baseCost: 1
-    costGrowth: 1
+    baseCost: 3
+    costGrowth: 1.5
     maxLevel: 2
