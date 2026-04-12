@@ -74,6 +74,15 @@ public class Meteor : MonoBehaviour
     private int[,] hp;
     private VoxelMaterial[,] material;
     private Texture2D texture;
+
+    // Iter 2: explosive cells whose HP just hit 0 in the current frame, queued
+    // for next-frame detonation. Drained at the start of Update so chain
+    // reactions span multiple frames and the cascade is visible to the player
+    // (one frame per chain link). The 1-frame delay is intrinsic — drain
+    // happens before any new ApplyBlast/ApplyTunnel calls land that frame, so
+    // newly-queued explosives wait until the NEXT frame's drain.
+    private readonly System.Collections.Generic.Queue<(int gx, int gy)> pendingDetonations
+        = new System.Collections.Generic.Queue<(int, int)>();
     private Sprite sprite;
     private int aliveCount;
     private bool dead;
@@ -203,6 +212,7 @@ public class Meteor : MonoBehaviour
         transform.localScale = Vector3.one * sizeScale;
 
         ReleaseTexture();
+        pendingDetonations.Clear();
         if (materialRegistry != null)
         {
             VoxelMeteorGenerator.Generate(
@@ -234,6 +244,12 @@ public class Meteor : MonoBehaviour
     private void Update()
     {
         if (dead) return;
+        // Iter 2: drain pending explosive detonations queued in the previous
+        // frame BEFORE moving the meteor. Each drain pass applies 1 damage to
+        // all 8 neighbors of each pending cell; chain links to other
+        // explosives queue for the NEXT frame so the cascade is visible.
+        if (pendingDetonations.Count > 0) DrainPendingDetonations();
+        if (dead) return; // detonation chain may have killed the meteor
         transform.position += (Vector3)(velocity * Time.deltaTime);
 
         if (!fading && transform.position.y < fadeStartY)
@@ -330,6 +346,10 @@ public class Meteor : MonoBehaviour
                 // Iter 2 per-material counts and payout sum.
                 AccumulateDestroyed(ref result, matHere);
 
+                // Iter 2: explosive cells queue a chain detonation for next frame.
+                if (matHere != null && matHere.behavior == MaterialBehavior.Explosive)
+                    pendingDetonations.Enqueue((x, y));
+
                 if (voxelChunkPrefab != null)
                 {
                     Vector3 worldVoxel = VoxelCenterToWorld(x, y);
@@ -362,6 +382,77 @@ public class Meteor : MonoBehaviour
         if (idx < 0) return;
         result.countByMaterialIndex[idx]++;
         result.totalPayout += mat.payoutPerCell;
+    }
+
+    // Iter 2: drain the pending-detonation queue. Each cell in the queue is
+    // an explosive that died in a previous frame; this pass applies 1 damage
+    // to all 8 neighbors. Newly-killed explosives go BACK on the queue (via
+    // the enqueue branch below) so the chain ripples one frame at a time.
+    //
+    // Pays out for everything destroyed in the chain via GameManager.AddMoney
+    // directly — this path runs from Update, not from a weapon's OnTrigger,
+    // so there's no projectile to bubble payout up through.
+    private void DrainPendingDetonations()
+    {
+        int snapshot = pendingDetonations.Count;
+        bool anyPainted = false;
+        var totalResult = new DestroyResult();
+
+        for (int i = 0; i < snapshot; i++)
+        {
+            var cell = pendingDetonations.Dequeue();
+            for (int dy = -1; dy <= 1; dy++)
+            {
+                for (int dx = -1; dx <= 1; dx++)
+                {
+                    if (dx == 0 && dy == 0) continue;
+                    int nx = cell.gx + dx;
+                    int ny = cell.gy + dy;
+                    if (nx < 0 || ny < 0
+                        || nx >= VoxelMeteorGenerator.GridSize
+                        || ny >= VoxelMeteorGenerator.GridSize) continue;
+                    if (kind[nx, ny] == VoxelKind.Empty) continue;
+
+                    hp[nx, ny]--;
+                    totalResult.damageDealt++;
+                    if (hp[nx, ny] > 0) continue;
+
+                    bool wasCore = kind[nx, ny] == VoxelKind.Core;
+                    var matHere = material != null ? material[nx, ny] : null;
+                    kind[nx, ny] = VoxelKind.Empty;
+                    VoxelMeteorGenerator.ClearVoxel(texture, nx, ny);
+                    anyPainted = true;
+                    aliveCount--;
+
+                    if (wasCore) totalResult.coreDestroyed++;
+                    else         totalResult.dirtDestroyed++;
+                    AccumulateDestroyed(ref totalResult, matHere);
+
+                    // Chain: a destroyed Explosive enqueues for the next frame.
+                    if (matHere != null && matHere.behavior == MaterialBehavior.Explosive)
+                        pendingDetonations.Enqueue((nx, ny));
+
+                    if (voxelChunkPrefab != null)
+                    {
+                        Vector3 worldVoxel = VoxelCenterToWorld(nx, ny);
+                        var burst = Instantiate(voxelChunkPrefab, worldVoxel, Quaternion.identity);
+                        burst.Play();
+                        Destroy(burst.gameObject, 1.5f);
+                    }
+                }
+            }
+        }
+
+        if (anyPainted) texture.Apply();
+
+        if (totalResult.totalPayout > 0 && GameManager.Instance != null)
+            GameManager.Instance.AddMoney(totalResult.totalPayout);
+
+        if (aliveCount <= 0)
+        {
+            dead = true;
+            owner?.Release(this);
+        }
     }
 
     // Line-walking voxel destruction for the railgun. Walks the grid along
@@ -442,6 +533,10 @@ public class Meteor : MonoBehaviour
                 if (wasCore) result.coreDestroyed++;
                 else         result.dirtDestroyed++;
                 AccumulateDestroyed(ref result, matHere);
+
+                // Iter 2: explosive cells queue a chain detonation for next frame.
+                if (matHere != null && matHere.behavior == MaterialBehavior.Explosive)
+                    pendingDetonations.Enqueue((ix, iy));
 
                 if (voxelChunkPrefab != null)
                 {
