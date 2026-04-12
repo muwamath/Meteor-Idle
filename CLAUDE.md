@@ -34,7 +34,7 @@ Assets/
   Editor/BuildScripts.cs  BuildWebGL + BuildWebGLDev entry points
 Tests/
   EditMode/               ~224 tests, fast (~7s), pure logic
-  PlayMode/               ~47 tests, slower (~46s), real physics/time
+  PlayMode/               ~54 tests, slower (~47s), real physics/time
 tools/
   identity-scrub.py       pre-commit identity-leak check
   build-webgl.sh          prod build (headless, editor must be closed)

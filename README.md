@@ -92,7 +92,7 @@ The two weapons feel mechanically different: missiles are spammy and area-of-eff
 - C# game code in the **`MeteorIdle`** assembly definition
 - New Input System
 - TextMeshPro for UI
-- **Unity Test Framework**: 224 EditMode tests + 47 PlayMode tests covering voxel destruction logic, per-weapon stats, build-cost escalation, spawner cadence ramp, railgun chain, turret targeting, missile homing, railgun charge animation, floating-text, drone physics, drone state machine, drone/bay stats, DroneBay door animation, CoreDrop lifecycle, paysOnBreak isolation, end-to-end drone collection, drone meteor avoidance, level progression (core-kill advancement, boss gating, boss failure/success, difficulty multipliers)
+- **Unity Test Framework**: 224 EditMode tests + 54 PlayMode tests covering voxel destruction logic, per-weapon stats, build-cost escalation, spawner cadence ramp, railgun chain, turret targeting, missile homing, railgun charge animation, floating-text, drone physics, drone state machine, drone/bay stats, DroneBay door animation, CoreDrop lifecycle, paysOnBreak isolation, end-to-end drone collection, drone meteor avoidance, level progression (core-kill advancement, boss gating, boss failure/success, difficulty multipliers), overlay panel click-to-open wiring for every upgrade/build/options panel
 
 All art is procedurally generated at edit time by C# editor scripts — there are no bitmap files authored in external tools. The voxel meteors, turret barrels, missiles, railgun bullets, railgun streaks, starfield, collector drone (plus-shape with red tips), drone bay (metallic box with doors), Collector grinder (gold teeth), CoreDrop, and particle sprites are all PNGs written by Unity at build time from procedural code. Hard pixel edges, 1-pixel dark/light edges, no smooth gradients — strict voxel aesthetic throughout.
 
@@ -125,8 +125,8 @@ Assets/
     LevelState.cs               level progression (core-kill advancement, boss, difficulty scaling)
     Debug/DebugOverlay.cs       editor-only money setter, level picker, reset
 Tests/
-  EditMode/                     223 logic tests (~7s runtime)
-  PlayMode/                     47 physics/integration tests (~46s runtime)
+  EditMode/                     224 logic tests (~7s runtime)
+  PlayMode/                     54 physics/integration tests (~47s runtime)
 tools/
   identity-scrub.py             pre-commit identity-leak check
   build-webgl.sh                headless Unity CLI wrapper for the prod WebGL build
