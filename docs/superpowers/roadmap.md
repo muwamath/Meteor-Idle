@@ -1,6 +1,6 @@
 # Meteor Idle — Iteration Roadmap
 
-Living document. Last revised: 2026-04-12 (Iter 4 shipped, bugfixes shipped, roadmap rewritten).
+Living document. Last revised: 2026-04-12 (Iter 4 + bugfix pass + SerializeField drift correction + options panel / build version display all shipped).
 
 Ordered plan for upcoming iterations. Each is a branch (`iter/<name>`) with its own spec + plan when large enough. Prioritized: bugs → tuning → polish → new systems → big features.
 
@@ -40,10 +40,24 @@ CoreDrop entities, CollectorDrone 8-state machine, DroneBay, Collector grinder. 
 - MeteorSpawner dynamic spawn range from Camera.main (fixes WebGL off-screen spawns)
 - ApplyBlast line-of-sight check (damage can't pass through surviving cores)
 - 271 tests (224 EM + 47 PM)
+- **Correction (commit `fe9fa89`):** missile lifetime and boss fall speed were code-default-only changes and the serialized prefab/scene YAML won at runtime, so they silently didn't ship the first time. Re-fixed by editing `Assets/Prefabs/Missile.prefab` and `Assets/Scenes/Game.unity` directly. Added as a permanent gotcha in CLAUDE.md.
+
+### Options panel + build version display ✅ 2026-04-12
+Gear icon bottom-right opens a modal (`OptionsPanel`) showing `Build: <sha> · <utc-date> · <variant>`. The SHA is auto-stamped at build time: `BuildScripts.BuildWebGL()` and `BuildWebGLDev()` call `git rev-parse --short HEAD` and write the result to `Assets/Resources/BuildInfo.txt` (gitignored) immediately before invoking `BuildPipeline.BuildPlayer`. `BuildInfo.cs` reads it at runtime via `Resources.Load<TextAsset>`. The panel is wired through `PanelManager` so it's mutually exclusive with upgrade panels, matching `DroneUpgradePanel`'s pattern. This is the designated home for future options (graphics quality, audio volumes, fullscreen toggle) so Iter 7 (UI overhaul) should slot them in rather than creating new panels. Also bumps `RunHitTest` maxWait from 15s→30s to unflake `Hit_Railgun_SideSlot_FarMeteor` under load. Commit `e7eb140`, 271 tests (224 EM + 47 PM).
 
 ---
 
 ## Next Up
+
+### Bugfix — WebGL explosive voxel inconsistency
+
+**Branch:** `iter/bugfix-webgl-explosions`
+**Size:** small, investigation + fix
+**Depends on:** nothing
+
+In the live WebGL build, railgun rounds and missiles don't reliably detonate explosive voxels — sometimes they hit and nothing explodes. Works more consistently in the editor. Needs repro, root cause (timing? physics layer? blast LOS edge case in WebGL?), fix, and PlayMode test if tractable.
+
+---
 
 ### Iter 5 — Tuning pass
 

@@ -25,14 +25,15 @@ Assets/
     Meteor.cs, VoxelMeteorGenerator.cs, Missile.cs
     TurretBase.cs (abstract), MissileTurret.cs, RailgunTurret.cs
     BaseSlot.cs, SlotManager.cs, MeteorSpawner.cs, GameManager.cs, SimplePool.cs, FloatingText.cs
+    BuildInfo.cs          runtime accessor for Resources/BuildInfo.txt (SHA + date, gitignored)
     Drones/               Collector, CollectorDrone, CoreDrop, DroneBay, DroneBody, DroneStats, BayStats, BayManager, ThrusterTrail
     Weapons/              WeaponType, RailgunRound, RailgunStreak
     Data/                 TurretStats, RailgunStats
     Debug/DebugOverlay.cs (money setter + level picker)
-    UI/                   MoneyDisplay, LevelStripUI, LevelCell, MissileUpgradePanel, RailgunUpgradePanel, DroneUpgradePanel, BuildSlotPanel, UpgradeButton, ModalClickCatcher, PanelManager
+    UI/                   MoneyDisplay, LevelStripUI, LevelCell, MissileUpgradePanel, RailgunUpgradePanel, DroneUpgradePanel, BuildSlotPanel, UpgradeButton, ModalClickCatcher, PanelManager, OptionsButton, OptionsPanel
   Editor/BuildScripts.cs  BuildWebGL + BuildWebGLDev entry points
 Tests/
-  EditMode/               ~223 tests, fast (~7s), pure logic
+  EditMode/               ~224 tests, fast (~7s), pure logic
   PlayMode/               ~47 tests, slower (~46s), real physics/time
 tools/
   identity-scrub.py       pre-commit identity-leak check
@@ -40,6 +41,7 @@ tools/
   build-webgl-dev.sh      dev build (DEVELOPMENT_BUILD, writes .dev-build-marker)
   serve-webgl-dev.sh      python http.server :8000 on build/WebGL-dev/
   deploy-webgl.sh         rsync prod build to gh-pages worktree, does NOT push
+  skills/                 project-specific reusable skills (see skills/doc-sync.md)
 docs/
   superpowers/specs/      design docs per iteration
   superpowers/plans/      implementation plans per iteration
@@ -80,6 +82,7 @@ docs/
 - Don't call `MarkSceneDirty`/`SaveScene` during play mode.
 - `manage_camera screenshot` excludes Screen Space Overlay canvases. Verify UI via `execute_code` CanvasGroup checks.
 - `PlayerSettings.runInBackground = true` must stay on.
+- **SerializeField drift.** Changing a `[SerializeField] private float x = 12f;` default in C# does NOT update existing prefabs or scene instances — their YAML wins at runtime. When "fixing" a SerializeField default, grep every `.prefab`, scene, and `.asset` file for the old value and edit the YAML too. Burned us on the Iter 4 bugfix pass: missile lifetime and boss fall speed looked fixed in code but shipped the old values for a full day.
 
 ## Debug overlay
 

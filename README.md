@@ -56,6 +56,7 @@ The deploy fires after a branch has been fast-forwarded to `main` and verified e
 - **Collector drones** launch from their bays, fly to CoreDrops, pick them up, deliver them to the Collector (the gold-toothed rock grinder at center), then loop back for more until their battery runs low. When low on battery, drones return to their bay to recharge. Each drone has a unique trail color so you can track them. Drone bays show the number of drones currently docked.
 - Meteors that drift past the base level fade out without penalty (yet).
 - The **level strip** at the top of the screen shows your current level, progress toward the next level (core kills / threshold), and upcoming levels. Boss levels (every 10th) show a warning icon.
+- Click the **gear icon** in the bottom-right corner to open the Options panel. For now it just shows the current build version (`Build: <sha> · <utc-date> · <variant>`), which is auto-stamped at build time from `git rev-parse --short HEAD` — handy for knowing exactly which build is live. Future options (graphics quality, audio volumes, fullscreen toggle) will live in the same panel.
 - Press **`` ` ``** (backquote) in the editor while playing, or in a local WebGL dev build served via `tools/serve-webgl-dev.sh`, to open a debug overlay that pauses the game and lets you tweak values (set money, set level, full game reset). The debug overlay is gated on `UNITY_EDITOR || DEVELOPMENT_BUILD` and is stripped from the production build deployed to GitHub Pages.
 
 ### Weapons
@@ -91,7 +92,7 @@ The two weapons feel mechanically different: missiles are spammy and area-of-eff
 - C# game code in the **`MeteorIdle`** assembly definition
 - New Input System
 - TextMeshPro for UI
-- **Unity Test Framework**: 223 EditMode tests + 47 PlayMode tests covering voxel destruction logic, per-weapon stats, build-cost escalation, spawner cadence ramp, railgun chain, turret targeting, missile homing, railgun charge animation, floating-text, drone physics, drone state machine, drone/bay stats, DroneBay door animation, CoreDrop lifecycle, paysOnBreak isolation, end-to-end drone collection, drone meteor avoidance, level progression (core-kill advancement, boss gating, boss failure/success, difficulty multipliers)
+- **Unity Test Framework**: 224 EditMode tests + 47 PlayMode tests covering voxel destruction logic, per-weapon stats, build-cost escalation, spawner cadence ramp, railgun chain, turret targeting, missile homing, railgun charge animation, floating-text, drone physics, drone state machine, drone/bay stats, DroneBay door animation, CoreDrop lifecycle, paysOnBreak isolation, end-to-end drone collection, drone meteor avoidance, level progression (core-kill advancement, boss gating, boss failure/success, difficulty multipliers)
 
 All art is procedurally generated at edit time by C# editor scripts — there are no bitmap files authored in external tools. The voxel meteors, turret barrels, missiles, railgun bullets, railgun streaks, starfield, collector drone (plus-shape with red tips), drone bay (metallic box with doors), Collector grinder (gold teeth), CoreDrop, and particle sprites are all PNGs written by Unity at build time from procedural code. Hard pixel edges, 1-pixel dark/light edges, no smooth gradients — strict voxel aesthetic throughout.
 
@@ -114,12 +115,13 @@ Assets/
     TurretBase.cs               abstract base class for weapon turrets
     MissileTurret.cs, RailgunTurret.cs
     BaseSlot.cs, SlotManager.cs
+    BuildInfo.cs                runtime accessor for Resources/BuildInfo.txt (SHA + build date)
     Drones/                     Collector, CollectorDrone, CoreDrop, DroneBay, DroneBody,
                                 DroneStats, BayStats, BayManager, ThrusterTrail, ...
     Weapons/                    WeaponType enum, RailgunRound, RailgunStreak
     Data/                       TurretStats.cs, RailgunStats.cs
     UI/                         MissileUpgradePanel, RailgunUpgradePanel, DroneUpgradePanel,
-                                BuildSlotPanel, PanelManager, ...
+                                BuildSlotPanel, PanelManager, OptionsButton, OptionsPanel, ...
     LevelState.cs               level progression (core-kill advancement, boss, difficulty scaling)
     Debug/DebugOverlay.cs       editor-only money setter, level picker, reset
 Tests/
