@@ -73,7 +73,10 @@ public class MeteorSpawner : MonoBehaviour
     private void SpawnOne()
     {
         var meteor = pool.Get();
-        float x = Random.Range(-spawnXRange, spawnXRange);
+        float range = spawnXRange;
+        if (Camera.main != null)
+            range = Camera.main.orthographicSize * Camera.main.aspect * 0.9f;
+        float x = Random.Range(-range, range);
         int seed = Random.Range(0, int.MaxValue);
 
         float sizeMin = 0.525f;

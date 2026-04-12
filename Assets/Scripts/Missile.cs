@@ -3,7 +3,7 @@ using UnityEngine;
 [RequireComponent(typeof(Rigidbody2D), typeof(CircleCollider2D))]
 public class Missile : MonoBehaviour
 {
-    [SerializeField] private float lifetime = 5f;
+    [SerializeField] private float lifetime = 12f;
     [SerializeField] private ParticleSystem explosionPrefab;
     [SerializeField] private FloatingText floatingTextPrefab;
 

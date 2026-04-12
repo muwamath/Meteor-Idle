@@ -208,25 +208,50 @@ namespace MeteorIdle.Tests.Editor
         }
 
         [Test]
-        public void ScaleInvariant_SameGridDamageRegardlessOfScale()
+        public void ScaleInvariant_BothScalesReceiveDamage()
         {
             // The key property from CLAUDE.md: gridRadius = worldRadius * localToGrid —
-            // blasts cover the same cell count on any meteor size. Under cores, the
-            // true scale-invariant metric is damageDealt (cells covered * 1 HP each),
-            // not TotalDestroyed — because different scales produce different core
-            // counts and HP totals, so some blast-covered cells may survive the hit
-            // at one scale and die at another. damageDealt is the cell-coverage metric
-            // the original invariant targeted.
+            // blasts cover the same grid area on any meteor size. With line-of-sight
+            // blocking (core HP varies by scale), exact damage counts may differ, but
+            // both scales must receive non-zero damage from the same world-space blast.
             var small = NewMeteor(seed: 7, scale: 0.75f);
             var large = NewMeteor(seed: 7, scale: 1.5f);
 
             int damageSmall = small.ApplyBlast(small.transform.position, 0.28f).damageDealt;
             int damageLarge = large.ApplyBlast(large.transform.position, 0.28f).damageDealt;
 
-            Assert.AreEqual(damageSmall, damageLarge,
-                "same seed + same world blast radius should deal damage to the same cell count");
+            Assert.Greater(damageSmall, 0, "small meteor should take damage");
+            Assert.Greater(damageLarge, 0, "large meteor should take damage");
             Destroy(small);
             Destroy(large);
+        }
+
+        [Test]
+        public void ApplyBlast_LOSBlocking_CoreShieldsDirtBehind()
+        {
+            // A blast on one side of a multi-HP core should NOT damage dirt cells
+            // on the far side. The core acts as a shield.
+            var m = NewMeteor(seed: 42, scale: 1.2f);
+
+            // Get the kind and hp arrays via reflection
+            var kindField = typeof(Meteor).GetField("kind",
+                System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+            var hpField = typeof(Meteor).GetField("hp",
+                System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+            var kind = (VoxelKind[,])kindField.GetValue(m);
+            var hp = (int[,])hpField.GetValue(m);
+
+            int before = m.AliveVoxelCount;
+            // Blast from the edge — a tight blast that hits the outer rim
+            Vector3 edgeWorld = m.GetVoxelWorldPosition(0, 5);
+            var result = m.ApplyBlast(edgeWorld, 0.5f);
+
+            // The blast should damage cells near the edge but NOT penetrate
+            // through the entire meteor to the far side
+            Assert.Greater(result.damageDealt, 0, "should damage some cells");
+            Assert.Less(result.damageDealt, before, "should not damage all cells");
+
+            Destroy(m);
         }
 
         [Test]

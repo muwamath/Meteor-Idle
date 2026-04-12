@@ -30,7 +30,7 @@ public class LevelState : MonoBehaviour
     [SerializeField] private int coreCountBonusEveryNLevels = 25;
 
     [Header("Boss")]
-    [SerializeField] private float bossFallSpeed = 0.3f;
+    [SerializeField] private float bossFallSpeed = 0.15f;
     [SerializeField] private float bossSize = 1.2f;
 
     [NonSerialized] private int currentLevel = 1;

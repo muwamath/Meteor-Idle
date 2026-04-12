@@ -359,6 +359,10 @@ public class Meteor : MonoBehaviour
                 float d2 = (cx - gx) * (cx - gx) + (cy - gy) * (cy - gy);
                 if (d2 > r2) continue;
 
+                // Line-of-sight check: skip this cell if a live cell with
+                // remaining HP blocks the path from the impact center.
+                if (IsBlastBlocked(gx, gy, x, y)) continue;
+
                 // 1 HP of damage per blast coverage. Blast radius is the
                 // damage-scaling mechanism — wider blasts hit more cells,
                 // not harder. A core with HP > 1 survives a single blast.
@@ -664,6 +668,40 @@ public class Meteor : MonoBehaviour
         exitWorld = transform.TransformPoint(localExit);
 
         return result;
+    }
+
+    // Returns true if the line from impact center (igx, igy) to candidate cell
+    // (tx, ty) is blocked by any intervening live cell. Walks the line in half-
+    // cell steps and checks each cell along the way. A cell only blocks if it's
+    // not the candidate itself and has HP > 0 (survives the blast).
+    private bool IsBlastBlocked(float igx, float igy, int tx, int ty)
+    {
+        float cx = tx + 0.5f;
+        float cy = ty + 0.5f;
+        float dx = cx - igx;
+        float dy = cy - igy;
+        float dist = Mathf.Sqrt(dx * dx + dy * dy);
+        if (dist < 0.5f) return false; // adjacent to impact, no blocking possible
+
+        float stepX = dx / dist * 0.5f;
+        float stepY = dy / dist * 0.5f;
+        int steps = Mathf.FloorToInt(dist / 0.5f);
+
+        float wx = igx;
+        float wy = igy;
+        for (int i = 0; i < steps; i++)
+        {
+            wx += stepX;
+            wy += stepY;
+            int ix = Mathf.FloorToInt(wx);
+            int iy = Mathf.FloorToInt(wy);
+            if (ix < 0 || iy < 0 || ix >= VoxelMeteorGenerator.GridSize || iy >= VoxelMeteorGenerator.GridSize)
+                continue;
+            if (ix == tx && iy == ty) continue; // don't block against the target itself
+            if (kind[ix, iy] != VoxelKind.Empty && hp[ix, iy] > 1)
+                return true;
+        }
+        return false;
     }
 
     private void SnapToNearestAliveCell(ref float gx, ref float gy)

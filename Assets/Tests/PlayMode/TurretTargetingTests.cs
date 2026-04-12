@@ -181,10 +181,11 @@ namespace MeteorIdle.Tests.PlayMode
             _injectedActive.Add(farther);
 
             // Nuke the closer meteor — ApplyBlast with a huge radius destroys
-            // every live voxel, flipping IsAlive to false. Iter 2 needs two
-            // passes because Stone is HP=2 and survives a single blast.
-            closer.ApplyBlast(closer.transform.position, 10f);
-            closer.ApplyBlast(closer.transform.position, 10f);
+            // every live voxel, flipping IsAlive to false. Multiple passes
+            // needed: Stone HP=2, and LOS blocking means cells behind cores
+            // require additional passes after blocking cells are cleared.
+            for (int i = 0; i < 6; i++)
+                closer.ApplyBlast(closer.transform.position, 10f);
             Assert.IsFalse(closer.IsAlive, "closer meteor should now be dead");
 
             Assert.AreSame(farther, _turret.FindTargetForTest());
