@@ -12,6 +12,8 @@ public class DebugOverlay : MonoBehaviour
     [SerializeField] private TMP_InputField moneyInput;
     [SerializeField] private Button applyButton;
     [SerializeField] private Button resetButton;
+    [SerializeField] private TMP_InputField levelInput;
+    [SerializeField] private Button levelApplyButton;
 
     private bool isOpen;
 
@@ -21,6 +23,8 @@ public class DebugOverlay : MonoBehaviour
         if (applyButton != null) applyButton.onClick.AddListener(ApplyMoney);
         if (moneyInput != null) moneyInput.onSubmit.AddListener(_ => ApplyMoney());
         if (resetButton != null) resetButton.onClick.AddListener(ResetGame);
+        if (levelApplyButton != null) levelApplyButton.onClick.AddListener(ApplyLevel);
+        if (levelInput != null) levelInput.onSubmit.AddListener(_ => ApplyLevel());
     }
 
     private void ResetGame()
@@ -42,11 +46,16 @@ public class DebugOverlay : MonoBehaviour
         if (panelRoot != null) panelRoot.SetActive(isOpen);
         Time.timeScale = isOpen ? 0f : 1f;
 
-        if (isOpen && moneyInput != null && GameManager.Instance != null)
+        if (isOpen)
         {
-            moneyInput.text = GameManager.Instance.Money.ToString();
-            moneyInput.Select();
-            moneyInput.ActivateInputField();
+            if (moneyInput != null && GameManager.Instance != null)
+            {
+                moneyInput.text = GameManager.Instance.Money.ToString();
+                moneyInput.Select();
+                moneyInput.ActivateInputField();
+            }
+            if (levelInput != null && LevelState.Instance != null)
+                levelInput.text = LevelState.Instance.CurrentLevel.ToString();
         }
     }
 
@@ -55,6 +64,13 @@ public class DebugOverlay : MonoBehaviour
         if (moneyInput == null || GameManager.Instance == null) return;
         if (int.TryParse(moneyInput.text, out int value))
             GameManager.Instance.SetMoney(Mathf.Max(0, value));
+    }
+
+    private void ApplyLevel()
+    {
+        if (levelInput == null || LevelState.Instance == null) return;
+        if (int.TryParse(levelInput.text, out int level))
+            LevelState.Instance.SetLevel(Mathf.Max(1, level));
     }
 
     private void OnDisable()

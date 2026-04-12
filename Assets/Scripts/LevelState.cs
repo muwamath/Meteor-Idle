@@ -103,6 +103,16 @@ public class LevelState : MonoBehaviour
         }
     }
 
+    /// <summary>
+    /// Debug-only: jump to a specific level. Resets kill counter and fires OnLevelChanged.
+    /// </summary>
+    public void SetLevel(int level)
+    {
+        currentLevel = Mathf.Max(1, level);
+        coreKillsThisBlock = 0;
+        OnLevelChanged?.Invoke();
+    }
+
     public void NotifyBossSpawned()
     {
         OnBossSpawned?.Invoke();
