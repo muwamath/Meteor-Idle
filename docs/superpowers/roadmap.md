@@ -1,6 +1,6 @@
 # Meteor Idle — Iteration Roadmap
 
-Living document. Last revised: 2026-04-11 (Iter 0 shipped).
+Living document. Last revised: 2026-04-11 (Iter 2 shipped).
 
 This is the ordered plan for the next several iterations, pulled from `todo.md` (sections above `# Future`). Each iteration is a branch (`iter/<name>`) with its own spec + plan when it's large enough to warrant one. Sized for the project's per-branch overhead (tests, play verify, code-reviewer, WebGL deploy).
 
@@ -107,36 +107,34 @@ Asteroids have a **core** (1+ voxels) surrounded by **dirt**. Dirt destruction i
 
 ---
 
-## Iter 2 — Asteroid types
+## Iter 2 — Asteroid variety (per-voxel materials) ✅ shipped 2026-04-11
 
-**Branch:** `iter/asteroid-types`
-**Size:** lightweight plan, ~4 phases
-**Depends on:** Iter 1 (cores exist, HP model exists)
+**Branch:** `iter/asteroid-variety` (merged to `main@85ec469`)
+**Spec:** [docs/superpowers/specs/2026-04-11-asteroid-variety-design.md](specs/2026-04-11-asteroid-variety-design.md)
+**Plan:** [docs/superpowers/plans/2026-04-11-asteroid-variety.md](plans/2026-04-11-asteroid-variety.md)
 
-### Goal
+### What shipped
 
-Multiple asteroid "materials" — ice, fire, metal, gold, hardened — that reskin + retune the base cores-and-dirt model. Different payouts, different HP, different visuals. No new behavior verbs, just variants.
+The original "asteroid types" plan called for whole-asteroid type reskins (ice / fire / metal / gold / hardened). During brainstorming the user pivoted to a much stronger model: **per-voxel material variety inside each asteroid**, not whole-asteroid types. Each meteor still has cores and dirt, but now also:
 
-### Scope
+- **Stone** — cool grey, HP 2, never targeted, forms thin veins (≤2 cells deep) through some asteroids.
+- **Gold** — bright yellow, instant cash ($5), top targeting priority. Prefers to spawn embedded in stone veins; falls back to standalone for the future "gold run" event.
+- **Explosive** — hot orange-red, second priority, **chains across frames** when adjacent explosives are damaged. Always net-positive (chain pays normally).
 
-- `AsteroidType` ScriptableObject (or enum + data table): color palette, HP multiplier, core-value multiplier, spawn weight.
-- `VoxelMeteorGenerator` rolls type per seed and returns it alongside the grid.
-- `Meteor` applies the type's palette + HP + payout multiplier at `Spawn`.
-- `MeteorSpawner` picks types weighted by level (weight is trivially `level → type weights` for now, deeper tuning in Iter 4).
-- Tests: generator determinism for each type, payout math.
+### Architecture
 
-### Phases (4, respecting the sizing rule)
+`VoxelMaterial` ScriptableObject + `MaterialRegistry` data layer. Adding a 6th material in Iter 3 is "create asset, register it" — no code edits to `Meteor.cs`, `ApplyBlast`, or `TurretBase`. New behavior verbs (chain reactions, etc.) extend a `MaterialBehavior` enum + handler in `Meteor.Update`'s pending-action loop.
 
-1. **`AsteroidType` data asset + enum + stub data for 5 types.** Create the assets, wire into `VoxelMeteorGenerator`. Tests for deterministic type roll. ~3 files.
-2. **Palette + HP application in `Meteor.Spawn`.** Visual verify each type's palette (pause for user inspection). ~2 files.
-3. **Spawn-weighted picking + initial tuning.** `MeteorSpawner` picks types, early levels biased toward plain/ice, metal/gold rarer. ~2 files.
-4. **Code-reviewer + play verify + merge + WebGL deploy.**
+### Test coverage
 
-### Manual play-verify gates
+138 EditMode + 40 PlayMode = 178 tests, all green. New tests: material asset/registry smoke, generator placement determinism, stone 2-deep cap (200-seed sweep), gold-prefers-stone (1000-seed sweep), explosive non-adjacency (500-seed sweep), 3 PlayMode chain-reaction tests (isolated, two-adjacent, explosive→core kill).
 
-- Each of the 5 types is visibly distinct.
-- Gold feels rare and rewarding; hardened feels genuinely harder to kill.
-- Frame rate holds with mixed types on screen.
+### What changed from the original plan
+
+- 6 phases instead of 4 (added explosive chain mechanics — a new behavior verb).
+- ScriptableObject-per-material instead of enum + data table — explicit user requirement for extensibility.
+- Targeting priority is gold > explosive > core (not just "is core").
+- Spawn weights moved to per-material independent dials (the hook for the future "gold run for 10 seconds" event).
 
 ---
 
