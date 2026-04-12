@@ -90,7 +90,11 @@ public class GameManager : MonoBehaviour
         for (int i = activeDrops.Count - 1; i >= 0; i--)
         {
             var d = activeDrops[i];
-            if (d == null || !d.IsAlive) activeDrops.RemoveAt(i);
+            if (d == null || !d.IsAlive)
+            {
+                activeDrops.RemoveAt(i);
+                if (d != null) coreDropPool?.Release(d);
+            }
         }
     }
 }
