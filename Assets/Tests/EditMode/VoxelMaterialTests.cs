@@ -95,5 +95,34 @@ namespace MeteorIdle.Tests.Editor
             Assert.GreaterOrEqual(idx, 0);
             Assert.AreSame(dirt, _registry.materials[idx]);
         }
+
+        [Test]
+        public void Dirt_PaysOnBreak_DefaultTrue()
+        {
+            var m = _registry.GetByName("Dirt");
+            Assert.IsTrue(m.paysOnBreak, "Dirt defaults to paysOnBreak=true");
+        }
+
+        [Test]
+        public void Gold_PaysOnBreak_True()
+        {
+            var m = _registry.GetByName("Gold");
+            Assert.IsTrue(m.paysOnBreak);
+        }
+
+        [Test]
+        public void Explosive_PaysOnBreak_True()
+        {
+            var m = _registry.GetByName("Explosive");
+            Assert.IsTrue(m.paysOnBreak);
+        }
+
+        [Test]
+        public void Core_PaysOnBreak_False_Iter3()
+        {
+            var m = _registry.GetByName("Core");
+            Assert.IsFalse(m.paysOnBreak,
+                "Iter 3: cores go through CoreDrop path, not direct payout");
+        }
     }
 }

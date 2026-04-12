@@ -24,6 +24,9 @@ public class VoxelMaterial : ScriptableObject
     [Tooltip("Money paid when one cell of this material is destroyed (HP hits 0).")]
     public int payoutPerCell = 0;
 
+    [Tooltip("If true, destroying a cell of this material pays out immediately via GameManager.AddMoney. If false, the caller is responsible for an alternate payout path (e.g. Iter 3 cores spawning CoreDrops).")]
+    public bool paysOnBreak = true;
+
     [Tooltip("Behavior verb. Inert = passive filler. Explosive = enqueues neighbor damage on death.")]
     public MaterialBehavior behavior = MaterialBehavior.Inert;
 

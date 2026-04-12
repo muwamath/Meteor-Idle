@@ -17,6 +17,7 @@ MonoBehaviour:
   bottomColor: {r: 0.35, g: 0.1, b: 0.1, a: 1}
   baseHp: 1
   payoutPerCell: 5
+  paysOnBreak: 0
   behavior: 0
   targetingTier: 3
   spawnWeight: 0
