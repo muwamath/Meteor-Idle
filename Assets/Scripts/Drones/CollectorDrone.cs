@@ -26,17 +26,38 @@ public class CollectorDrone : MonoBehaviour
     public void SetMeteorSpawner(MeteorSpawner spawner) { cachedSpawner = spawner; }
     public void SetCollector(Collector c) { collector = c; }
 
-    public DroneState State { get; private set; } = DroneState.Idle;
+    private DroneState state = DroneState.Idle;
+    public DroneState State
+    {
+        get => state;
+        private set
+        {
+            state = value;
+            UpdateSortingOrder();
+        }
+    }
     public CoreDrop TargetDrop { get; private set; }
     public float Battery => battery;
     public int CargoCount => cargoCount;
     public DroneBody Body => body;
 
+    private SpriteRenderer spriteRenderer;
+
     private void Awake()
     {
         body = new DroneBody(transform.position, thrustCap: 4f, dampingPerSec: 1f);
+        spriteRenderer = GetComponent<SpriteRenderer>();
         var col = GetComponent<CircleCollider2D>();
         if (col != null) col.isTrigger = true;
+        UpdateSortingOrder();
+    }
+
+    private void UpdateSortingOrder()
+    {
+        if (spriteRenderer == null) return;
+        // Behind the bay (sortingOrder 2) when idle/docking, in front when flying
+        bool hidden = state == DroneState.Idle || state == DroneState.Docking;
+        spriteRenderer.sortingOrder = hidden ? 1 : 7;
     }
 
     private void OnTriggerEnter2D(Collider2D other)
