@@ -109,6 +109,8 @@ public class Meteor : MonoBehaviour
     {
         isBoss = true;
         bossSpeed = fallSpeed;
+        if (texture != null)
+            VoxelMeteorGenerator.ApplyBossPalette(texture, kind, material);
     }
 
     // True when at least one Core cell is still alive. Turrets only lock

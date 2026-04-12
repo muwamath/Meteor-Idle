@@ -96,6 +96,28 @@ public class GameManager : MonoBehaviour
         activeDrops.Remove(drop);
     }
 
+    private void OnEnable()
+    {
+        if (LevelState.Instance != null)
+            LevelState.Instance.OnBossFailed += ClearActiveDrops;
+    }
+
+    private void OnDisable()
+    {
+        if (LevelState.Instance != null)
+            LevelState.Instance.OnBossFailed -= ClearActiveDrops;
+    }
+
+    private void ClearActiveDrops()
+    {
+        for (int i = activeDrops.Count - 1; i >= 0; i--)
+        {
+            var drop = activeDrops[i];
+            if (drop != null) coreDropPool?.Release(drop);
+        }
+        activeDrops.Clear();
+    }
+
     private void LateUpdate()
     {
         for (int i = activeDrops.Count - 1; i >= 0; i--)

@@ -430,4 +430,28 @@ public static class VoxelMeteorGenerator
             for (int x = 0; x < VoxelPixelSize; x++)
                 tex.SetPixel(px0 + x, py0 + y, new Color(0, 0, 0, 0));
     }
+
+    // Iter 4: repaint all live voxels with dark/crimson boss palette.
+    // Cores get crimson, everything else gets dark grey.
+    private static readonly Color BossBaseTop = new Color(0.25f, 0.18f, 0.18f);
+    private static readonly Color BossBaseBottom = new Color(0.15f, 0.10f, 0.10f);
+    private static readonly Color BossCoreTop = new Color(0.85f, 0.12f, 0.12f);
+    private static readonly Color BossCoreBottom = new Color(0.55f, 0.06f, 0.06f);
+
+    public static void ApplyBossPalette(Texture2D tex, VoxelKind[,] kind, VoxelMaterial[,] mat)
+    {
+        for (int gy = 0; gy < GridSize; gy++)
+        {
+            for (int gx = 0; gx < GridSize; gx++)
+            {
+                if (kind[gx, gy] == VoxelKind.Empty) continue;
+                bool isCore = kind[gx, gy] == VoxelKind.Core
+                    || (mat != null && mat[gx, gy] != null && mat[gx, gy].displayName == "Core");
+                Color top = isCore ? BossCoreTop : BossBaseTop;
+                Color bottom = isCore ? BossCoreBottom : BossBaseBottom;
+                PaintBlockWithPalette(tex, gx, gy, top, bottom);
+            }
+        }
+        tex.Apply();
+    }
 }
