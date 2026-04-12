@@ -48,21 +48,21 @@ Assets/
     BaseSlot.cs                 slot root with two weapon-child refs + per-weapon panel routing
     SlotManager.cs              spawns 4 slots, per-weapon NextBuildCost(WeaponType)
     MeteorSpawner.cs            timer + pool, calm starting cadence
-    GameManager.cs              money singleton + OnMoneyChanged event, SetMoney for debug, CoreDrop pool + registry
+    GameManager.cs              money singleton + OnMoneyChanged, SetMoney, CoreDrop pool (SimplePool) + registry + LateUpdate cleanup
     SimplePool.cs               generic MonoBehaviour pool
     FloatingText.cs             world-space "+$N" tween
     Drones/
       Collector.cs              single rock-grinder deposit point, animated teeth (4-step quantized)
-      CollectorDrone.cs         state machine (8 states), DroneBody integration, avoidance, contact push
-      CoreDrop.cs               floating entity spawned by core kills, drifts down, claimed by drones
-      DroneBay.cs               launch/catch/recharge, 4-keyframe door animation, ICollectorDroneEnvironment
+      CollectorDrone.cs         state machine (8 states), DroneBody integration, avoidance, contact push, unique trail color per drone
+      CoreDrop.cs               pooled floating entity spawned by core kills, drifts down, claimed by drones
+      DroneBay.cs               launch/catch/recharge, 4-keyframe door animation, drone count label, ICollectorDroneEnvironment
       DroneBody.cs              custom 2D physics integrator (exponential damping, avoidance)
       DroneState.cs             enum: Idle/Launching/Seeking/Pickup/Delivering/Depositing/Returning/Docking
-      DroneStats.cs             ScriptableObject: Thrust, BatteryCapacity, CargoCapacity
-      BayStats.cs               ScriptableObject: ReloadSpeed, DronesPerBay
-      BayManager.cs             spawns 2 bays + wires Collector reference
-      ICollectorDroneEnvironment.cs  interface for mock-injectable drone testing
-      ThrusterTrail.cs          voxel particle emitter on drone arm tips
+      DroneStats.cs             ScriptableObject: Thrust, BatteryCapacity, CargoCapacity, Braking
+      BayStats.cs               ScriptableObject: ReloadSpeed (affects recharge rate), DronesPerBay
+      BayManager.cs             spawns 2 bays + wires Collector, propagates stat upgrades to live drones via UpdateStats()
+      ICollectorDroneEnvironment.cs  interface for mock-injectable drone testing (includes ReloadSpeed)
+      ThrusterTrail.cs          pooled voxel particle emitter on drone arm tips, per-drone color
     Weapons/
       WeaponType.cs             enum { Missile, Railgun }
       RailgunRound.cs           per-frame Physics2D.RaycastAll on Meteors layer

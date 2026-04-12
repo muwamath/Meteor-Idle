@@ -50,10 +50,10 @@ The deploy fires after a branch has been fast-forwarded to `main` and verified e
 - One base starts pre-built with a Missile turret. The other 3 start empty (`+` icon). Both drone bays start active with 1 drone each.
 - **Click an empty slot** to open the build modal. Pick a weapon (Missile or Railgun) and pay its cost to install it.
 - **Click a built turret** to open its upgrade panel — there's a separate panel for each weapon type because their stats are different.
-- **Click a drone bay** to open the drone/bay upgrade panel with two columns: BAY stats (Reload Speed, Drones Per Bay) and DRONE stats (Thrust, Battery Capacity, Cargo Capacity).
+- **Click a drone bay** to open the drone/bay upgrade panel with two columns: BAY stats (Reload Speed, Drones Per Bay) and DRONE stats (Thrust, Battery Capacity, Cargo Capacity, Braking). Upgrades apply immediately to all flying drones without interrupting them.
 - **Click outside any panel** (or press Escape) to close it. Only one panel is open at a time.
 - Regular voxel destruction earns **$1 per voxel destroyed**. Core voxels don't pay directly — they spawn floating red CoreDrop entities that drift downward slowly.
-- **Collector drones** launch from their bays, fly to CoreDrops, pick them up, deliver them to the Collector (the gold-toothed rock grinder at center), then loop back for more until their battery runs low. When low on battery, drones return to their bay to recharge.
+- **Collector drones** launch from their bays, fly to CoreDrops, pick them up, deliver them to the Collector (the gold-toothed rock grinder at center), then loop back for more until their battery runs low. When low on battery, drones return to their bay to recharge. Each drone has a unique trail color so you can track them. Drone bays show the number of drones currently docked.
 - Meteors that drift past the base level fade out without penalty (yet).
 - Press **`` ` ``** (backquote) in the editor while playing, or in a local WebGL dev build served via `tools/serve-webgl-dev.sh`, to open a debug overlay that pauses the game and lets you tweak values (currently: set current money, full game reset). The debug overlay is gated on `UNITY_EDITOR || DEVELOPMENT_BUILD` and is stripped from the production build deployed to GitHub Pages.
 
