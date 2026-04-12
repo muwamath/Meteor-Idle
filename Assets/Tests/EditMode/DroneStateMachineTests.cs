@@ -7,15 +7,14 @@ namespace MeteorIdle.Tests.Editor
     internal class MockEnvironment : ICollectorDroneEnvironment
     {
         public Vector3 BayPosition { get; set; } = Vector3.zero;
+        public Vector3 CollectorPosition { get; set; } = new Vector3(0f, -3f, 0f);
         public bool BayDoorsOpen { get; set; }
         public int DoorOpenRequests;
         public int DoorCloseRequests;
-        public int TotalDeposited;
         public List<CoreDrop> Drops = new List<CoreDrop>();
 
         public void RequestOpenDoors() { DoorOpenRequests++; BayDoorsOpen = true; }
         public void RequestCloseDoors() { DoorCloseRequests++; BayDoorsOpen = false; }
-        public void Deposit(int value) { TotalDeposited += value; }
 
         public CoreDrop FindNearestUnclaimedDrop(Vector3 from, float maxDistance)
         {
@@ -133,7 +132,7 @@ namespace MeteorIdle.Tests.Editor
         }
 
         [Test]
-        public void Pickup_MovesDropIntoCargo_Cargo1ReturnsImmediately()
+        public void Pickup_MovesDropIntoCargo_TransitionsToDelivering()
         {
             var env = new MockEnvironment();
             var drop = MakeDrop(new Vector3(0.1f, 0f, 0f), 5);
@@ -148,9 +147,58 @@ namespace MeteorIdle.Tests.Editor
             drone.Tick(0.05f);
             drone.Tick(0.05f);
 
-            Assert.AreEqual(DroneState.Returning, drone.State);
+            Assert.AreEqual(DroneState.Delivering, drone.State);
             Assert.AreEqual(1, drone.CargoCount);
             Assert.IsFalse(drop.IsAlive, "drop consumed on pickup");
+        }
+
+        [Test]
+        public void Delivering_ReachesCollector_TransitionsToDepositing()
+        {
+            var env = new MockEnvironment();
+            env.CollectorPosition = new Vector3(0f, -3f, 0f);
+            var drop = MakeDrop(new Vector3(0.1f, 0f, 0f), 5);
+            env.Drops.Add(drop);
+            var drone = MakeDrone(env);
+
+            // Get to Delivering state
+            drone.Tick(0.1f); env.BayDoorsOpen = true; drone.Tick(0.1f);
+            drone.transform.position = drop.Position;
+            drone.Body.Position = drop.Position;
+            drone.Tick(0.05f); drone.Tick(0.05f);
+            Assert.AreEqual(DroneState.Delivering, drone.State);
+
+            // Move drone to collector
+            drone.transform.position = env.CollectorPosition;
+            drone.Body.Position = env.CollectorPosition;
+            drone.Tick(0.05f);
+
+            Assert.AreEqual(DroneState.Depositing, drone.State);
+        }
+
+        [Test]
+        public void Depositing_ClearsCargo_TransitionsToReturning_WhenNoDrop()
+        {
+            var env = new MockEnvironment();
+            env.CollectorPosition = new Vector3(0f, -3f, 0f);
+            var drop = MakeDrop(new Vector3(0.1f, 0f, 0f), 5);
+            env.Drops.Add(drop);
+            var drone = MakeDrone(env);
+
+            // Get to Depositing state
+            drone.Tick(0.1f); env.BayDoorsOpen = true; drone.Tick(0.1f);
+            drone.transform.position = drop.Position;
+            drone.Body.Position = drop.Position;
+            drone.Tick(0.05f); drone.Tick(0.05f);
+            drone.transform.position = env.CollectorPosition;
+            drone.Body.Position = env.CollectorPosition;
+            drone.Tick(0.05f);
+            Assert.AreEqual(DroneState.Depositing, drone.State);
+
+            // Tick Depositing — no more drops, should go Returning
+            drone.Tick(0.05f);
+            Assert.AreEqual(DroneState.Returning, drone.State);
+            Assert.AreEqual(0, drone.CargoCount);
         }
 
         [Test]
@@ -158,14 +206,22 @@ namespace MeteorIdle.Tests.Editor
         {
             var env = new MockEnvironment();
             env.BayPosition = Vector3.zero;
+            env.CollectorPosition = new Vector3(0f, -3f, 0f);
             var drop = MakeDrop(new Vector3(0.1f, 0f, 0f), 5);
             env.Drops.Add(drop);
             var drone = MakeDrone(env);
 
+            // Get to Returning
             drone.Tick(0.1f); env.BayDoorsOpen = true; drone.Tick(0.1f);
             drone.transform.position = drop.Position;
             drone.Body.Position = drop.Position;
             drone.Tick(0.05f); drone.Tick(0.05f);
+            drone.transform.position = env.CollectorPosition;
+            drone.Body.Position = env.CollectorPosition;
+            drone.Tick(0.05f); drone.Tick(0.05f);
+            Assert.AreEqual(DroneState.Returning, drone.State);
+
+            // Move to bay
             drone.transform.position = env.BayPosition;
             drone.Body.Position = env.BayPosition;
             env.BayDoorsOpen = false;
@@ -176,56 +232,39 @@ namespace MeteorIdle.Tests.Editor
         }
 
         [Test]
-        public void Docking_DoorsOpen_TransitionsToDepositing_PaysCargo()
+        public void Docking_DoorsOpen_SnapsToPosition_ReturnsToIdle()
         {
             var env = new MockEnvironment();
+            env.BayPosition = new Vector3(1f, -5f, 0f);
+            env.CollectorPosition = new Vector3(0f, -3f, 0f);
             var drop = MakeDrop(new Vector3(0.1f, 0f, 0f), 5);
             env.Drops.Add(drop);
             var drone = MakeDrone(env);
 
+            // Get to Docking
             drone.Tick(0.1f); env.BayDoorsOpen = true; drone.Tick(0.1f);
             drone.transform.position = drop.Position;
             drone.Body.Position = drop.Position;
+            drone.Tick(0.05f); drone.Tick(0.05f);
+            drone.transform.position = env.CollectorPosition;
+            drone.Body.Position = env.CollectorPosition;
             drone.Tick(0.05f); drone.Tick(0.05f);
             drone.transform.position = env.BayPosition;
             drone.Body.Position = env.BayPosition;
             env.BayDoorsOpen = false;
             drone.Tick(0.05f);
+            Assert.AreEqual(DroneState.Docking, drone.State);
+
+            // Doors open → snap + idle
             env.BayDoorsOpen = true;
             drone.Tick(0.05f);
-
-            Assert.AreEqual(DroneState.Depositing, drone.State);
-            Assert.AreEqual(5, env.TotalDeposited);
-            Assert.AreEqual(0, drone.CargoCount);
-        }
-
-        [Test]
-        public void Depositing_Completes_ReturnsToIdle_RequestsCloseDoors()
-        {
-            var env = new MockEnvironment();
-            var drop = MakeDrop(new Vector3(0.1f, 0f, 0f), 5);
-            env.Drops.Add(drop);
-            var drone = MakeDrone(env);
-
-            drone.Tick(0.1f); env.BayDoorsOpen = true; drone.Tick(0.1f);
-            drone.transform.position = drop.Position;
-            drone.Body.Position = drop.Position;
-            drone.Tick(0.05f); drone.Tick(0.05f);
-            drone.transform.position = env.BayPosition;
-            drone.Body.Position = env.BayPosition;
-            env.BayDoorsOpen = false;
-            drone.Tick(0.05f);
-            env.BayDoorsOpen = true;
-            drone.Tick(0.05f);
-            int closeBefore = env.DoorCloseRequests;
-            drone.Tick(0.05f);
-
             Assert.AreEqual(DroneState.Idle, drone.State);
-            Assert.AreEqual(closeBefore + 1, env.DoorCloseRequests);
+            Assert.AreEqual(env.BayPosition, drone.transform.position, "drone snapped to bay");
+            Assert.AreEqual(Vector2.zero, drone.Body.Velocity, "velocity zeroed on dock");
         }
 
         [Test]
-        public void Seeking_BatteryBelowReserve_TransitionsToReturning_EvenWithClaimedDrop()
+        public void Seeking_BatteryBelowReserve_TransitionsToReturning()
         {
             var env = new MockEnvironment();
             var drop = MakeDrop(new Vector3(20f, 0f, 0f), 5);
@@ -233,7 +272,6 @@ namespace MeteorIdle.Tests.Editor
             var drone = MakeDrone(env);
 
             drone.Tick(0.1f); env.BayDoorsOpen = true; drone.Tick(0.1f);
-            // Park drone away from bay so Return can't immediately dock (no physics in Phase 3).
             drone.transform.position = new Vector3(5f, 0f, 0f);
             drone.Body.Position = new Vector2(5f, 0f);
             for (int i = 0; i < 70; i++)

@@ -15,10 +15,14 @@ public class DroneBay : MonoBehaviour, ICollectorDroneEnvironment, IPointerClick
     [SerializeField] private Transform rightDoor;
     [SerializeField] private float openingDuration = 0.4f;
     [SerializeField] private float closingDuration = 0.4f;
+    [SerializeField] private TMPro.TMP_Text droneCountLabel;
+
+    private Vector3 collectorPosition;
 
     public DoorState Doors { get; private set; } = DoorState.Closed;
     public bool IsOpen => Doors == DoorState.Open;
     public Vector3 BayPosition => transform.position;
+    public Vector3 CollectorPosition => collectorPosition;
     public bool BayDoorsOpen => IsOpen;
 
     public float LeftDoorLocalRotationZ => leftDoor != null
@@ -28,6 +32,8 @@ public class DroneBay : MonoBehaviour, ICollectorDroneEnvironment, IPointerClick
 
     private static readonly float[] LeftOpenKeyframes    = { 0f, 45f, 90f };
     private static readonly float[] LeftClosingKeyframes = { 90f, 45f, 0f };
+
+    public void SetCollectorPosition(Vector3 pos) { collectorPosition = pos; }
 
     private void Awake()
     {
@@ -43,7 +49,11 @@ public class DroneBay : MonoBehaviour, ICollectorDroneEnvironment, IPointerClick
         }
     }
 
-    private void Update() { Tick(Time.deltaTime); }
+    private void Update()
+    {
+        Tick(Time.deltaTime);
+        UpdateDroneCount();
+    }
 
     public void RequestOpenDoors()
     {
@@ -108,9 +118,15 @@ public class DroneBay : MonoBehaviour, ICollectorDroneEnvironment, IPointerClick
         return best;
     }
 
-    public void Deposit(int value)
+    private void UpdateDroneCount()
     {
-        if (GameManager.Instance != null) GameManager.Instance.AddMoney(value);
+        if (droneCountLabel == null) return;
+        int count = 0;
+        foreach (var drone in GetComponentsInChildren<CollectorDrone>(false))
+        {
+            if (drone.State == DroneState.Idle) count++;
+        }
+        droneCountLabel.text = count > 0 ? count.ToString() : "";
     }
 
     public event System.Action<DroneBay> Clicked;

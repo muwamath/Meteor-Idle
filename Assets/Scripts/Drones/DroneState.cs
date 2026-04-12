@@ -4,7 +4,8 @@ public enum DroneState
     Launching = 1,
     Seeking = 2,
     Pickup = 3,
-    Returning = 4,
-    Docking = 5,
-    Depositing = 6,
+    Delivering = 4,
+    Depositing = 5,
+    Returning = 6,
+    Docking = 7,
 }

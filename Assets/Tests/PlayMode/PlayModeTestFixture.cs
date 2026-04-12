@@ -124,9 +124,10 @@ namespace MeteorIdle.Tests.PlayMode
 
         protected (CollectorDrone drone, DroneTestEnvironment env) SpawnTestDroneWithEnv(
             Vector3 position,
-            Vector3 bayPosition)
+            Vector3 bayPosition,
+            Vector3? collectorPosition = null)
         {
-            var env = new DroneTestEnvironment { BayPosition = bayPosition, BayDoorsOpen = true };
+            var env = new DroneTestEnvironment { BayPosition = bayPosition, CollectorPosition = collectorPosition ?? bayPosition, BayDoorsOpen = true };
             var go = new GameObject("TestDrone", typeof(CollectorDrone));
             go.transform.position = position;
             var drone = go.GetComponent<CollectorDrone>();
@@ -161,15 +162,10 @@ namespace MeteorIdle.Tests.PlayMode
     public class DroneTestEnvironment : ICollectorDroneEnvironment
     {
         public Vector3 BayPosition { get; set; }
+        public Vector3 CollectorPosition { get; set; }
         public bool BayDoorsOpen { get; set; }
-        public int TotalDeposited;
         public void RequestOpenDoors()  { BayDoorsOpen = true; }
         public void RequestCloseDoors() { BayDoorsOpen = false; }
-        public void Deposit(int value)
-        {
-            TotalDeposited += value;
-            if (GameManager.Instance != null) GameManager.Instance.AddMoney(value);
-        }
         public CoreDrop FindNearestUnclaimedDrop(Vector3 from, float maxDistance)
         {
             if (GameManager.Instance == null) return null;

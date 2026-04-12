@@ -5,10 +5,11 @@ using UnityEngine.Serialization;
 public class SlotManager : MonoBehaviour
 {
     [SerializeField] private BaseSlot slotPrefab;
-    [SerializeField] private int slotCount = 3;
+    [SerializeField] private int slotCount = 4;
     [SerializeField] private float slotY = -8.26f;
     [SerializeField] private float slotStartX = 0f;
-    [SerializeField] private float slotSpacing = 8f;
+    [SerializeField] private float slotSpacing = 7f;
+    [SerializeField] private float[] slotXOverrides;
     [SerializeField] private int prebuiltIndex = 1;
     [SerializeField] private WeaponType prebuiltWeapon = WeaponType.Missile;
     [FormerlySerializedAs("buildCosts")]
@@ -36,7 +37,8 @@ public class SlotManager : MonoBehaviour
         float startX = slotStartX + (-slotSpacing * (slotCount - 1) * 0.5f);
         for (int i = 0; i < slotCount; i++)
         {
-            var pos = new Vector3(startX + i * slotSpacing, slotY, 0f);
+            float xPos = (slotXOverrides != null && i < slotXOverrides.Length) ? slotXOverrides[i] : startX + i * slotSpacing;
+            var pos = new Vector3(xPos, slotY, 0f);
             var slot = Instantiate(slotPrefab, pos, Quaternion.identity, transform);
 
             // Both weapon children (MissileWeapon, RailgunWeapon) live as

@@ -4,8 +4,10 @@ using UnityEngine;
 public class CollectorDrone : MonoBehaviour
 {
     [SerializeField] private float contactPushMagnitude = 2.5f;
+    [SerializeField] private float depositRadius = 0.5f;
     private ICollectorDroneEnvironment env;
     private DroneBody body;
+    private Collector collector;
 
     private float battery;
     private float batteryCapacity;
@@ -22,6 +24,7 @@ public class CollectorDrone : MonoBehaviour
     private MeteorSpawner cachedSpawner;
 
     public void SetMeteorSpawner(MeteorSpawner spawner) { cachedSpawner = spawner; }
+    public void SetCollector(Collector c) { collector = c; }
 
     public DroneState State { get; private set; } = DroneState.Idle;
     public CoreDrop TargetDrop { get; private set; }
@@ -82,9 +85,10 @@ public class CollectorDrone : MonoBehaviour
             case DroneState.Launching: TickLaunching(dt); break;
             case DroneState.Seeking: TickSeeking(dt); break;
             case DroneState.Pickup: TickPickup(dt); break;
+            case DroneState.Delivering: TickDelivering(dt); break;
+            case DroneState.Depositing: TickDepositing(dt); break;
             case DroneState.Returning: TickReturning(dt); break;
             case DroneState.Docking: TickDocking(dt); break;
-            case DroneState.Depositing: TickDepositing(dt); break;
         }
     }
 
@@ -118,12 +122,14 @@ public class CollectorDrone : MonoBehaviour
         {
             var replacement = env.FindNearestUnclaimedDrop(transform.position, seekMaxRange);
             if (replacement != null && replacement.TryClaim()) { TargetDrop = replacement; return; }
+            if (cargoCount > 0) { State = DroneState.Delivering; return; }
             State = DroneState.Returning;
             return;
         }
         battery -= dt;
         if (battery <= batteryCapacity * reserveThresholdFraction)
         {
+            if (cargoCount > 0) { State = DroneState.Delivering; return; }
             State = DroneState.Returning;
             return;
         }
@@ -144,6 +150,34 @@ public class CollectorDrone : MonoBehaviour
         bool roomInCargo = cargoCount < cargoCapacity;
         bool aboveReserve = battery > batteryCapacity * reserveThresholdFraction;
         if (roomInCargo && aboveReserve)
+        {
+            var next = env.FindNearestUnclaimedDrop(transform.position, seekMaxRange);
+            if (next != null && next.TryClaim()) { TargetDrop = next; State = DroneState.Seeking; return; }
+        }
+        // Cargo full or no more drops — deliver to collector
+        State = DroneState.Delivering;
+    }
+
+    private void TickDelivering(float dt)
+    {
+        battery -= dt;
+        if (battery <= 0f)
+        {
+            battery = 0f;
+            body.LimpHomeMode = true;
+        }
+        float dist = Vector3.Distance(transform.position, env.CollectorPosition);
+        if (dist <= depositRadius) State = DroneState.Depositing;
+    }
+
+    private void TickDepositing(float dt)
+    {
+        if (collector != null) collector.Deposit(cargoValue);
+        cargoCount = 0;
+        cargoValue = 0;
+
+        bool aboveReserve = battery > batteryCapacity * reserveThresholdFraction;
+        if (aboveReserve)
         {
             var next = env.FindNearestUnclaimedDrop(transform.position, seekMaxRange);
             if (next != null && next.TryClaim()) { TargetDrop = next; State = DroneState.Seeking; return; }
@@ -170,16 +204,12 @@ public class CollectorDrone : MonoBehaviour
     private void TickDocking(float dt)
     {
         if (!env.BayDoorsOpen) return;
-        State = DroneState.Depositing;
-        env.Deposit(cargoValue);
-        cargoCount = 0;
-        cargoValue = 0;
-    }
-
-    private void TickDepositing(float dt)
-    {
-        env.RequestCloseDoors();
+        // Snap to bay — the "catch" mechanic
+        body.Position = (Vector2)env.BayPosition;
+        body.Velocity = Vector2.zero;
+        transform.position = env.BayPosition;
         body.LimpHomeMode = false;
+        env.RequestCloseDoors();
         State = DroneState.Idle;
     }
 
@@ -227,6 +257,8 @@ public class CollectorDrone : MonoBehaviour
                 if (TargetDrop != null && TargetDrop.IsAlive)
                     return ((Vector2)(TargetDrop.Position - transform.position)).normalized;
                 return Vector2.zero;
+            case DroneState.Delivering:
+                return ((Vector2)(env.CollectorPosition - transform.position)).normalized;
             case DroneState.Returning:
             case DroneState.Docking:
                 return ((Vector2)(env.BayPosition - transform.position)).normalized;

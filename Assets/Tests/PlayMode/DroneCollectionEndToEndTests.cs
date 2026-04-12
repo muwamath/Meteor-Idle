@@ -8,7 +8,7 @@ namespace MeteorIdle.Tests.PlayMode
     public class DroneCollectionEndToEndTests : PlayModeTestFixture
     {
         [UnityTest]
-        public IEnumerator CoreKill_SpawnsDrop_DroneCollectsAndDeposits()
+        public IEnumerator CoreKill_SpawnsDrop_DroneCollectsAndDepositsAtCollector()
         {
             yield return SetupScene();
 
@@ -23,19 +23,24 @@ namespace MeteorIdle.Tests.PlayMode
             Assert.AreEqual(startingMoney, _gameManager.Money,
                 "core kill did NOT pay directly (Iter3 gate)");
 
+            // Create a Collector at origin
+            var collectorGo = new GameObject("TestCollector", typeof(Collector));
+            collectorGo.transform.position = new Vector3(0f, -3f, 0f);
+            var collector = collectorGo.GetComponent<Collector>();
+
             var bay = new Vector3(0f, -5f, 0f);
-            var (drone, env) = SpawnTestDroneWithEnv(bay, bay);
+            var (drone, env) = SpawnTestDroneWithEnv(bay, bay, collectorGo.transform.position);
+            drone.SetCollector(collector);
 
             float timeout = 15f;
-            while (timeout > 0f && env.TotalDeposited == 0)
+            while (timeout > 0f && _gameManager.Money <= startingMoney)
             {
                 timeout -= Time.deltaTime;
                 yield return null;
             }
 
-            Assert.Greater(env.TotalDeposited, 0, "drone deposited core value");
             Assert.Greater(_gameManager.Money, startingMoney,
-                "GameManager money increased via deposit path");
+                "GameManager money increased via Collector deposit path");
             TeardownScene();
         }
 

@@ -530,14 +530,13 @@ MonoBehaviour:
   m_EditorClassIdentifier: MeteorIdle::BayManager
   bayPrefab: {fileID: 6387276394604093018, guid: 9593f4100220b4c3e8c6a0e5388dec3b, type: 3}
   dronePrefab: {fileID: 1828397025992626473, guid: 07a93921ac749497da671d741b91ed8c, type: 3}
-  bayCount: 3
+  collector: {fileID: 427045673}
+  bayCount: 2
   bayY: -8.26
-  bayStartX: 8
-  baySpacing: 2.5
-  prebuiltIndex: 0
-  bayBuildCosts: c800000058020000
+  bayXPositions:
+  - -7
+  - 7
   upgradePanel: {fileID: 0}
-  buildPanel: {fileID: 0}
   meteorSpawner: {fileID: 1326236805}
   droneStats: {fileID: 11400000, guid: 4bf351d7b94bf4e7fa5c5329614f5c0d, type: 2}
   bayStats: {fileID: 11400000, guid: afb2b1493fab840c0b0d393597abb417, type: 2}
@@ -870,6 +869,74 @@ MonoBehaviour:
     serializedVersion: 2
     m_Bits: 4294967295
   m_MaxRayIntersections: 0
+--- !u!1001 &427045672
+PrefabInstance:
+  m_ObjectHideFlags: 0
+  serializedVersion: 2
+  m_Modification:
+    serializedVersion: 3
+    m_TransformParent: {fileID: 0}
+    m_Modifications:
+    - target: {fileID: 2979356750715884871, guid: 97f8eccc45bfb4e608c41c1f1951de9c, type: 3}
+      propertyPath: m_LocalPosition.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 2979356750715884871, guid: 97f8eccc45bfb4e608c41c1f1951de9c, type: 3}
+      propertyPath: m_LocalPosition.y
+      value: -8.26
+      objectReference: {fileID: 0}
+    - target: {fileID: 2979356750715884871, guid: 97f8eccc45bfb4e608c41c1f1951de9c, type: 3}
+      propertyPath: m_LocalPosition.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 2979356750715884871, guid: 97f8eccc45bfb4e608c41c1f1951de9c, type: 3}
+      propertyPath: m_LocalRotation.w
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 2979356750715884871, guid: 97f8eccc45bfb4e608c41c1f1951de9c, type: 3}
+      propertyPath: m_LocalRotation.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 2979356750715884871, guid: 97f8eccc45bfb4e608c41c1f1951de9c, type: 3}
+      propertyPath: m_LocalRotation.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 2979356750715884871, guid: 97f8eccc45bfb4e608c41c1f1951de9c, type: 3}
+      propertyPath: m_LocalRotation.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 2979356750715884871, guid: 97f8eccc45bfb4e608c41c1f1951de9c, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 2979356750715884871, guid: 97f8eccc45bfb4e608c41c1f1951de9c, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 2979356750715884871, guid: 97f8eccc45bfb4e608c41c1f1951de9c, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 4706955433480244647, guid: 97f8eccc45bfb4e608c41c1f1951de9c, type: 3}
+      propertyPath: m_Name
+      value: Collector
+      objectReference: {fileID: 0}
+    m_RemovedComponents: []
+    m_RemovedGameObjects: []
+    m_AddedGameObjects: []
+    m_AddedComponents: []
+  m_SourcePrefab: {fileID: 100100000, guid: 97f8eccc45bfb4e608c41c1f1951de9c, type: 3}
+--- !u!114 &427045673 stripped
+MonoBehaviour:
+  m_CorrespondingSourceObject: {fileID: 1946969397605796717, guid: 97f8eccc45bfb4e608c41c1f1951de9c, type: 3}
+  m_PrefabInstance: {fileID: 427045672}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8886b5ba3b2054cd2b98f908fa739e7e, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: MeteorIdle::Collector
 --- !u!1 &482021717
 GameObject:
   m_ObjectHideFlags: 0
@@ -3486,10 +3553,15 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::SlotManager
   slotPrefab: {fileID: 8514671401862806112, guid: f28cc9da6efa145edaf914a0b8f72d4d, type: 3}
-  slotCount: 3
+  slotCount: 4
   slotY: -8.26
-  slotStartX: -2
+  slotStartX: 0
   slotSpacing: 8
+  slotXOverrides:
+  - -10.5
+  - -3.5
+  - 3.5
+  - 10.5
   prebuiltIndex: 1
   prebuiltWeapon: 0
   missileBuildCosts: 0100000001000000
@@ -5437,3 +5509,4 @@ SceneRoots:
   - {fileID: 103849127}
   - {fileID: 1507192546}
   - {fileID: 157480832}
+  - {fileID: 427045672}

@@ -22,7 +22,7 @@ MonoBehaviour:
   batteryCapacity:
     id: 1
     displayName: Battery Capacity
-    baseValue: 40
+    baseValue: 120
     perLevelAdd: 3
     baseCost: 30
     costGrowth: 1.6
