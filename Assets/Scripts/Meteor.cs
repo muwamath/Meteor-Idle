@@ -1,16 +1,37 @@
 using UnityEngine;
 
 // Returned by Meteor.ApplyBlast and Meteor.ApplyTunnel so callers can pay
-// money based on core destruction while still reporting total for visuals
-// and tracking weight-budget consumption on every HP point (not just cell
-// kills). A struct instead of a tuple so call sites read naturally at
-// every use and the field names survive refactors.
+// money based on what was destroyed while still tracking weight-budget
+// consumption per HP point (not per cell kill).
+//
+// Iter 2: per-material counts replace the dirt/core split. Legacy
+// dirtDestroyed/coreDestroyed fields stay populated as a shim so any test
+// code still asserting them keeps working. New callers should read
+// totalPayout (sum of payoutPerCell across all destroyed cells) directly.
 public struct DestroyResult
 {
+    // Legacy shim fields — populated alongside the new per-material counts
+    // so Iter 1 test assertions keep working.
     public int dirtDestroyed;
     public int coreDestroyed;
     public int damageDealt; // total HP points subtracted, regardless of cell kills
+
+    // Iter 2 per-material counts. Indexed by MaterialRegistry index.
+    // Allocated lazily on first increment to keep the zero-result path
+    // allocation-free. Caller-friendly accessors below.
+    public int[] countByMaterialIndex;
+    public int totalPayout;
+
     public int TotalDestroyed => dirtDestroyed + coreDestroyed;
+    public int TotalPayout => totalPayout;
+
+    public int GetCount(VoxelMaterial m, MaterialRegistry registry)
+    {
+        if (countByMaterialIndex == null || registry == null) return 0;
+        int idx = registry.IndexOf(m);
+        if (idx < 0 || idx >= countByMaterialIndex.Length) return 0;
+        return countByMaterialIndex[idx];
+    }
 }
 
 [RequireComponent(typeof(SpriteRenderer), typeof(CircleCollider2D))]
@@ -32,6 +53,11 @@ public class Meteor : MonoBehaviour
     [SerializeField] private float fadeDuration = 0.5f;
     [SerializeField] private ParticleSystem voxelChunkPrefab;
 
+    // Iter 2: per-cell material data drives palette, HP, payout, targeting
+    // tier, and behavior dispatch. When this is null (Iter 1 backward-compat),
+    // the legacy dirt+core path runs and material[,] stays null.
+    [SerializeField] private MaterialRegistry materialRegistry;
+
     private SpriteRenderer sr;
     private CircleCollider2D col;
     private Vector2 velocity;
@@ -46,6 +72,7 @@ public class Meteor : MonoBehaviour
     // when applying damage.
     private VoxelKind[,] kind;
     private int[,] hp;
+    private VoxelMaterial[,] material;
     private Texture2D texture;
     private Sprite sprite;
     private int aliveCount;
@@ -85,6 +112,79 @@ public class Meteor : MonoBehaviour
         }
     }
 
+    // Iter 2: generalization of HasLiveCore. True if any cell on this meteor
+    // is targetable (its material has targetingTier > 0). Used by TurretBase
+    // to decide if this meteor is worth aiming at.
+    //
+    // Backward compat: when material[,] is null (Iter 1 path), falls back to
+    // the legacy core-only check. This keeps Iter 1 PlayMode tests passing
+    // until they're migrated to inject a registry.
+    public bool HasAnyTargetable
+    {
+        get
+        {
+            if (kind == null) return false;
+            if (material == null) return HasLiveCore;
+            for (int y = 0; y < VoxelMeteorGenerator.GridSize; y++)
+                for (int x = 0; x < VoxelMeteorGenerator.GridSize; x++)
+                    if (kind[x, y] != VoxelKind.Empty
+                        && material[x, y] != null
+                        && material[x, y].targetingTier > 0)
+                        return true;
+            return false;
+        }
+    }
+
+    // Iter 2: generalization of PickRandomCoreVoxel. Picks a random live cell
+    // from the highest-priority tier present on this meteor (gold first, then
+    // explosive, then core). Returns false only when no targetable cell exists.
+    //
+    // Backward compat: when material[,] is null, falls through to
+    // PickRandomCoreVoxel so Iter 1 test code still works.
+    public bool PickPriorityVoxel(out int gx, out int gy)
+    {
+        gx = 0; gy = 0;
+        if (kind == null) return false;
+        if (material == null) return PickRandomCoreVoxel(out gx, out gy);
+
+        // Find the lowest tier > 0 that has any live cell on this meteor.
+        int bestTier = int.MaxValue;
+        for (int y = 0; y < VoxelMeteorGenerator.GridSize; y++)
+            for (int x = 0; x < VoxelMeteorGenerator.GridSize; x++)
+            {
+                if (kind[x, y] == VoxelKind.Empty) continue;
+                var mat = material[x, y];
+                if (mat == null || mat.targetingTier <= 0) continue;
+                if (mat.targetingTier < bestTier) bestTier = mat.targetingTier;
+            }
+        if (bestTier == int.MaxValue) return false;
+
+        // Pick uniformly across all live cells at that tier.
+        int tierCount = 0;
+        for (int y = 0; y < VoxelMeteorGenerator.GridSize; y++)
+            for (int x = 0; x < VoxelMeteorGenerator.GridSize; x++)
+            {
+                if (kind[x, y] == VoxelKind.Empty) continue;
+                var mat = material[x, y];
+                if (mat == null || mat.targetingTier != bestTier) continue;
+                tierCount++;
+            }
+        int targetIndex = Random.Range(0, tierCount);
+        int seen = 0;
+        for (int y = 0; y < VoxelMeteorGenerator.GridSize; y++)
+        {
+            for (int x = 0; x < VoxelMeteorGenerator.GridSize; x++)
+            {
+                if (kind[x, y] == VoxelKind.Empty) continue;
+                var mat = material[x, y];
+                if (mat == null || mat.targetingTier != bestTier) continue;
+                if (seen == targetIndex) { gx = x; gy = y; return true; }
+                seen++;
+            }
+        }
+        return false;
+    }
+
     private void Awake()
     {
         sr = GetComponent<SpriteRenderer>();
@@ -103,7 +203,18 @@ public class Meteor : MonoBehaviour
         transform.localScale = Vector3.one * sizeScale;
 
         ReleaseTexture();
-        VoxelMeteorGenerator.Generate(seed, sizeScale, out kind, out hp, out texture, out aliveCount);
+        if (materialRegistry != null)
+        {
+            VoxelMeteorGenerator.Generate(
+                seed, sizeScale, materialRegistry,
+                out kind, out hp, out material, out texture, out aliveCount);
+        }
+        else
+        {
+            // Iter 1 backward-compat path: legacy two-kind output, material[,] left null.
+            VoxelMeteorGenerator.Generate(seed, sizeScale, out kind, out hp, out texture, out aliveCount);
+            material = null;
+        }
         sprite = Sprite.Create(
             texture,
             new Rect(0, 0, VoxelMeteorGenerator.TextureSize, VoxelMeteorGenerator.TextureSize),
@@ -206,13 +317,18 @@ public class Meteor : MonoBehaviour
                 if (hp[x, y] > 0) continue;
 
                 bool wasCore = kind[x, y] == VoxelKind.Core;
+                var matHere = material != null ? material[x, y] : null;
                 kind[x, y] = VoxelKind.Empty;
                 VoxelMeteorGenerator.ClearVoxel(texture, x, y);
                 anyPainted = true;
                 aliveCount--;
 
+                // Legacy shim fields — keeps Iter 1 test assertions valid.
                 if (wasCore) result.coreDestroyed++;
                 else         result.dirtDestroyed++;
+
+                // Iter 2 per-material counts and payout sum.
+                AccumulateDestroyed(ref result, matHere);
 
                 if (voxelChunkPrefab != null)
                 {
@@ -232,6 +348,20 @@ public class Meteor : MonoBehaviour
             owner?.Release(this);
         }
         return result;
+    }
+
+    // Iter 2: bump per-material count and payout in DestroyResult.
+    // Allocates the count array lazily on first hit so the zero-result
+    // path stays allocation-free. Safe with null material (Iter 1 path).
+    private void AccumulateDestroyed(ref DestroyResult result, VoxelMaterial mat)
+    {
+        if (mat == null || materialRegistry == null) return;
+        if (result.countByMaterialIndex == null)
+            result.countByMaterialIndex = new int[materialRegistry.materials.Length];
+        int idx = materialRegistry.IndexOf(mat);
+        if (idx < 0) return;
+        result.countByMaterialIndex[idx]++;
+        result.totalPayout += mat.payoutPerCell;
     }
 
     // Line-walking voxel destruction for the railgun. Walks the grid along
@@ -303,6 +433,7 @@ public class Meteor : MonoBehaviour
                 }
 
                 bool wasCore = kind[ix, iy] == VoxelKind.Core;
+                var matHere = material != null ? material[ix, iy] : null;
                 kind[ix, iy] = VoxelKind.Empty;
                 VoxelMeteorGenerator.ClearVoxel(texture, ix, iy);
                 anyPainted = true;
@@ -310,6 +441,7 @@ public class Meteor : MonoBehaviour
 
                 if (wasCore) result.coreDestroyed++;
                 else         result.dirtDestroyed++;
+                AccumulateDestroyed(ref result, matHere);
 
                 if (voxelChunkPrefab != null)
                 {
