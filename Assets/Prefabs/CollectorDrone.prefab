@@ -105,9 +105,10 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: MeteorIdle::ThrusterTrail
   owner: {fileID: 1828397025992626473}
-  emitIntervalAtFullThrust: 0.05
+  emitInterval: 0.012
   particleLifetime: 0.3
   particleSprite: {fileID: -5690906965718254323, guid: c3206fb99132c452185a83765a6129c3, type: 3}
+  trailColor: {r: 0.15, g: 0.85, b: 0.2, a: 1}
 --- !u!1 &1826086953635526430
 GameObject:
   m_ObjectHideFlags: 0
@@ -213,9 +214,10 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: MeteorIdle::ThrusterTrail
   owner: {fileID: 1828397025992626473}
-  emitIntervalAtFullThrust: 0.05
+  emitInterval: 0.012
   particleLifetime: 0.3
   particleSprite: {fileID: -5690906965718254323, guid: c3206fb99132c452185a83765a6129c3, type: 3}
+  trailColor: {r: 1, g: 1, b: 1, a: 1}
 --- !u!1 &2035258233797994080
 GameObject:
   m_ObjectHideFlags: 0
@@ -362,6 +364,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: MeteorIdle::CollectorDrone
   contactPushMagnitude: 2.5
+  depositRadius: 0.5
   avoidanceSafetyMargin: 0.35
 --- !u!1 &4293336620808898244
 GameObject:
@@ -468,9 +471,10 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: MeteorIdle::ThrusterTrail
   owner: {fileID: 1828397025992626473}
-  emitIntervalAtFullThrust: 0.05
+  emitInterval: 0.012
   particleLifetime: 0.3
   particleSprite: {fileID: -5690906965718254323, guid: c3206fb99132c452185a83765a6129c3, type: 3}
+  trailColor: {r: 0.95, g: 0.2, b: 0.15, a: 1}
 --- !u!1 &5144838534179060633
 GameObject:
   m_ObjectHideFlags: 0
@@ -576,6 +580,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: MeteorIdle::ThrusterTrail
   owner: {fileID: 1828397025992626473}
-  emitIntervalAtFullThrust: 0.05
+  emitInterval: 0.012
   particleLifetime: 0.3
   particleSprite: {fileID: -5690906965718254323, guid: c3206fb99132c452185a83765a6129c3, type: 3}
+  trailColor: {r: 1, g: 1, b: 1, a: 1}

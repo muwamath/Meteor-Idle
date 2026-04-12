@@ -33,3 +33,10 @@ MonoBehaviour:
     perLevelAdd: 1
     baseCost: 1
     costGrowth: 1
+  braking:
+    id: 3
+    displayName: Braking
+    baseValue: 3
+    perLevelAdd: 1.5
+    baseCost: 1
+    costGrowth: 1

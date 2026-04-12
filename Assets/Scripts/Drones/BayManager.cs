@@ -59,6 +59,7 @@ public class BayManager : MonoBehaviour
     private void OnDroneStatsChanged()
     {
         float thrust = droneStats != null ? droneStats.thrust.CurrentValue : 4f;
+        float damping = droneStats != null ? droneStats.braking.CurrentValue : 3f;
         float battery = droneStats != null ? droneStats.batteryCapacity.CurrentValue : 60f;
         int cargo = droneStats != null ? Mathf.RoundToInt(droneStats.cargoCapacity.CurrentValue) : 1;
         foreach (var bay in bays)
@@ -67,7 +68,7 @@ public class BayManager : MonoBehaviour
             {
                 drone.Initialize(
                     env: bay,
-                    thrust: thrust, damping: 1f,
+                    thrust: thrust, damping: damping,
                     batteryCapacity: battery, cargoCapacity: cargo,
                     reserveThresholdFraction: 0.3f,
                     pickupRadius: 0.35f, dockRadius: 0.45f);
@@ -82,12 +83,13 @@ public class BayManager : MonoBehaviour
         if (dronePrefab == null) return;
         var drone = Instantiate(dronePrefab, bay.transform.position, Quaternion.identity, bay.transform);
         float thrust = droneStats != null ? droneStats.thrust.CurrentValue : 4f;
+        float damping = droneStats != null ? droneStats.braking.CurrentValue : 3f;
         float battery = droneStats != null ? droneStats.batteryCapacity.CurrentValue : 60f;
         int cargo = droneStats != null ? Mathf.RoundToInt(droneStats.cargoCapacity.CurrentValue) : 1;
         drone.Initialize(
             env: bay,
             thrust: thrust,
-            damping: 1f,
+            damping: damping,
             batteryCapacity: battery,
             cargoCapacity: cargo,
             reserveThresholdFraction: 0.3f,

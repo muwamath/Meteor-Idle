@@ -7,6 +7,7 @@ public enum DroneStatId
     Thrust = 0,
     BatteryCapacity = 1,
     CargoCapacity = 2,
+    Braking = 3,
 }
 
 [CreateAssetMenu(fileName = "DroneStats", menuName = "Meteor Idle/Drone Stats")]
@@ -30,6 +31,7 @@ public class DroneStats : ScriptableObject
     public Stat thrust          = new Stat { id = DroneStatId.Thrust,          displayName = "Thrust",           baseValue = 4f,  perLevelAdd = 1.0f, baseCost = 1, costGrowth = 1f };
     public Stat batteryCapacity = new Stat { id = DroneStatId.BatteryCapacity, displayName = "Battery Capacity", baseValue = 10f, perLevelAdd = 3f,   baseCost = 1, costGrowth = 1f };
     public Stat cargoCapacity   = new Stat { id = DroneStatId.CargoCapacity,   displayName = "Cargo Capacity",   baseValue = 1f,  perLevelAdd = 1f,   baseCost = 1, costGrowth = 1f };
+    public Stat braking         = new Stat { id = DroneStatId.Braking,         displayName = "Braking",          baseValue = 3f,  perLevelAdd = 1.5f, baseCost = 1, costGrowth = 1f };
 
     public event Action OnChanged;
 
@@ -40,6 +42,7 @@ public class DroneStats : ScriptableObject
             case DroneStatId.Thrust: return thrust;
             case DroneStatId.BatteryCapacity: return batteryCapacity;
             case DroneStatId.CargoCapacity: return cargoCapacity;
+            case DroneStatId.Braking: return braking;
         }
         return null;
     }
@@ -49,6 +52,7 @@ public class DroneStats : ScriptableObject
         yield return thrust;
         yield return batteryCapacity;
         yield return cargoCapacity;
+        yield return braking;
     }
 
     public void ApplyUpgrade(DroneStatId id)

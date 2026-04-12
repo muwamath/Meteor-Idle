@@ -5,9 +5,10 @@ using UnityEngine;
 public class ThrusterTrail : MonoBehaviour
 {
     [SerializeField] private CollectorDrone owner;
-    [SerializeField] private float emitIntervalAtFullThrust = 0.02f;
-    [SerializeField] private float particleLifetime = 0.5f;
+    [SerializeField] private float emitInterval = 0.012f;
+    [SerializeField] private float particleLifetime = 0.6f;
     [SerializeField] private Sprite particleSprite;
+    [SerializeField] private Color trailColor = Color.white;
 
     private float emitTimer;
 
@@ -17,11 +18,9 @@ public class ThrusterTrail : MonoBehaviour
     {
         if (owner == null || owner.Body == null) return;
         float velocityMagnitude = owner.Body.Velocity.magnitude;
-        if (velocityMagnitude < 0.1f) return;
-        float interval = emitIntervalAtFullThrust
-            * Mathf.Clamp(owner.Body.ThrustCap / Mathf.Max(0.01f, velocityMagnitude), 0.5f, 2f);
+        if (velocityMagnitude < 0.05f) return;
         emitTimer += Time.deltaTime;
-        if (emitTimer < interval) return;
+        if (emitTimer < emitInterval) return;
         emitTimer = 0f;
         Emit();
     }
@@ -43,7 +42,7 @@ public class ThrusterTrail : MonoBehaviour
             p = go.AddComponent<TrailParticle>();
         }
         p.transform.position = transform.position;
-        p.Reset(particleLifetime);
+        p.Reset(particleLifetime, trailColor);
     }
 
     public static void ReturnToPool(TrailParticle p)
@@ -56,17 +55,19 @@ public class ThrusterTrail : MonoBehaviour
 
 public class TrailParticle : MonoBehaviour
 {
-    private float lifetime = 0.5f;
+    private float lifetime = 0.6f;
     private float t;
     private SpriteRenderer sr;
+    private Color baseColor;
 
     private void Awake() { sr = GetComponent<SpriteRenderer>(); }
 
-    public void Reset(float life)
+    public void Reset(float life, Color color)
     {
         lifetime = life;
         t = 0f;
-        if (sr != null) { var c = sr.color; c.a = 1f; sr.color = c; }
+        baseColor = color;
+        if (sr != null) { sr.color = color; }
     }
 
     private void Update()
@@ -74,7 +75,7 @@ public class TrailParticle : MonoBehaviour
         t += Time.deltaTime;
         if (sr != null)
         {
-            var c = sr.color;
+            var c = baseColor;
             c.a = Mathf.Clamp01(1f - t / lifetime);
             sr.color = c;
         }
