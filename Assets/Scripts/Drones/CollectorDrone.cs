@@ -16,6 +16,11 @@ public class CollectorDrone : MonoBehaviour
     private float dockRadius;
     private float seekMaxRange = 30f;
 
+    [SerializeField] private float avoidanceSafetyMargin = 0.35f;
+    private MeteorSpawner cachedSpawner;
+
+    public void SetMeteorSpawner(MeteorSpawner spawner) { cachedSpawner = spawner; }
+
     public DroneState State { get; private set; } = DroneState.Idle;
     public CoreDrop TargetDrop { get; private set; }
     public float Battery => battery;
@@ -171,9 +176,33 @@ public class CollectorDrone : MonoBehaviour
         if (body == null || env == null) { Tick(dt); return; }
 
         body.DesiredThrust = ComputeDesiredThrust();
+        ApplyMeteorAvoidance();
         Tick(dt);
         body.Integrate(dt);
         transform.position = new Vector3(body.Position.x, body.Position.y, 0f);
+    }
+
+    private void ApplyMeteorAvoidance()
+    {
+        if (cachedSpawner == null)
+            cachedSpawner = Object.FindFirstObjectByType<MeteorSpawner>();
+        if (cachedSpawner != null)
+        {
+            foreach (var m in cachedSpawner.ActiveMeteors)
+            {
+                if (m == null || !m.IsAlive) continue;
+                float radius = 0.75f * m.transform.localScale.x;
+                body.ApplyAvoidance((Vector2)m.transform.position, radius, avoidanceSafetyMargin);
+            }
+            return;
+        }
+        var loose = Object.FindObjectsByType<Meteor>(FindObjectsSortMode.None);
+        foreach (var m in loose)
+        {
+            if (m == null || !m.IsAlive) continue;
+            float radius = 0.75f * m.transform.localScale.x;
+            body.ApplyAvoidance((Vector2)m.transform.position, radius, avoidanceSafetyMargin);
+        }
     }
 
     private Vector2 ComputeDesiredThrust()
