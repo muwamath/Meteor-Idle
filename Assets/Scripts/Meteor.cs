@@ -58,6 +58,11 @@ public class Meteor : MonoBehaviour
     // the legacy dirt+core path runs and material[,] stays null.
     [SerializeField] private MaterialRegistry materialRegistry;
 
+    // Iter 3: prefab spawned at a core cell's world position when that cell
+    // is destroyed. Drones collect and deposit it; the meteor itself no
+    // longer credits money directly for cores.
+    [SerializeField] private CoreDrop coreDropPrefab;
+
     private SpriteRenderer sr;
     private CircleCollider2D col;
     private Vector2 velocity;
@@ -346,6 +351,11 @@ public class Meteor : MonoBehaviour
                 // Iter 2 per-material counts and payout sum.
                 AccumulateDestroyed(ref result, matHere);
 
+                // Iter 3: non-paying materials (cores) spawn a CoreDrop
+                // instead of contributing to TotalPayout.
+                if (matHere != null && !matHere.paysOnBreak)
+                    SpawnCoreDrop(x, y, matHere);
+
                 // Iter 2: explosive cells queue a chain detonation for next frame.
                 if (matHere != null && matHere.behavior == MaterialBehavior.Explosive)
                     pendingDetonations.Enqueue((x, y));
@@ -385,6 +395,21 @@ public class Meteor : MonoBehaviour
         // direct-payout sum. Cores (paysOnBreak=false) go through SpawnCoreDrop
         // and deposit via the collector drone loop.
         if (mat.paysOnBreak) result.totalPayout += mat.payoutPerCell;
+    }
+
+    // Iter 3: instantiate a CoreDrop at a just-destroyed core cell's world
+    // position, carrying that material's payoutPerCell as the drop value.
+    // Registers with GameManager so drones can find it. Graceful no-op if
+    // the prefab is unwired (keeps Iter 1 test harnesses compiling).
+    private void SpawnCoreDrop(int gx, int gy, VoxelMaterial mat)
+    {
+        if (coreDropPrefab == null) return;
+        if (mat == null) return;
+        Vector3 pos = VoxelCenterToWorld(gx, gy);
+        var drop = Instantiate(coreDropPrefab, pos, Quaternion.identity);
+        drop.Spawn(pos, mat.payoutPerCell);
+        if (GameManager.Instance != null)
+            GameManager.Instance.RegisterDrop(drop);
     }
 
     // Iter 2: drain the pending-detonation queue. Each cell in the queue is
@@ -430,6 +455,10 @@ public class Meteor : MonoBehaviour
                     if (wasCore) totalResult.coreDestroyed++;
                     else         totalResult.dirtDestroyed++;
                     AccumulateDestroyed(ref totalResult, matHere);
+
+                    // Iter 3: non-paying materials (cores) spawn CoreDrops.
+                    if (matHere != null && !matHere.paysOnBreak)
+                        SpawnCoreDrop(nx, ny, matHere);
 
                     // Chain: a destroyed Explosive enqueues for the next frame.
                     if (matHere != null && matHere.behavior == MaterialBehavior.Explosive)
@@ -536,6 +565,10 @@ public class Meteor : MonoBehaviour
                 if (wasCore) result.coreDestroyed++;
                 else         result.dirtDestroyed++;
                 AccumulateDestroyed(ref result, matHere);
+
+                // Iter 3: non-paying materials (cores) spawn CoreDrops.
+                if (matHere != null && !matHere.paysOnBreak)
+                    SpawnCoreDrop(ix, iy, matHere);
 
                 // Iter 2: explosive cells queue a chain detonation for next frame.
                 if (matHere != null && matHere.behavior == MaterialBehavior.Explosive)
