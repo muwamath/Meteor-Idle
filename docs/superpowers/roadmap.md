@@ -1,6 +1,6 @@
 # Meteor Idle — Iteration Roadmap
 
-Living document. Last revised: 2026-04-12 (Iter 3 shipped).
+Living document. Last revised: 2026-04-12 (Iter 3 + polish shipped).
 
 This is the ordered plan for the next several iterations, pulled from `todo.md` (sections above `# Future`). Each iteration is a branch (`iter/<name>`) with its own spec + plan when it's large enough to warrant one. Sized for the project's per-branch overhead (tests, play verify, code-reviewer, WebGL deploy).
 
@@ -139,16 +139,24 @@ All prices flattened to **$1 per purchase** (baseCost=1, costGrowth=1) across al
 
 ### Test coverage
 
-189 EditMode + 42 PlayMode = 231 tests, all green. New tests: DroneBody physics, state machine transitions (including Delivering/Depositing flow), DroneStats/BayStats formulas, DroneBay door animation, CoreDrop lifecycle, paysOnBreak isolation, GameManager drop registry, Meteor core-drop spawning, end-to-end drone collection, drone meteor avoidance.
+190 EditMode + 42 PlayMode = 232 tests, all green. New tests: DroneBody physics, state machine transitions (including Delivering/Depositing flow), DroneStats/BayStats formulas, DroneBay door animation, CoreDrop lifecycle, paysOnBreak isolation, GameManager drop registry, Meteor core-drop spawning, end-to-end drone collection, drone meteor avoidance.
 
-### Deferred items (known gaps from code review)
+### Polish pass (same branch, shipped same day)
 
-- Drone stat upgrades (Thrust, Battery, Cargo) don't propagate to existing drones — only affects new spawns.
-- Battery recharge ignores ReloadSpeed upgrade (hardcoded `battery += dt`).
-- ThrusterTrail and CoreDrop use Instantiate/Destroy, not pooling — GC pressure at high drone/drop counts.
-- Bay drone count TMP label not yet wired in DroneBay prefab.
-- `BuildBayPanel.cs` is dead code (bays are pre-built, no purchasing).
-- Collector upgrades (deposit multiplier, attraction range) stub exists but no panel yet.
+All deferred items from code review were addressed:
+
+- **Stat propagation to existing drones** — `BayManager` subscribes to `droneStats.OnChanged`, calls non-destructive `CollectorDrone.UpdateStats()` that hot-swaps thrust/damping/battery/cargo without resetting state or position.
+- **ReloadSpeed affects recharge** — `ICollectorDroneEnvironment.ReloadSpeed` property, `DroneBay` implements it, `CollectorDrone.TickIdle` uses `battery += dt * env.ReloadSpeed`.
+- **Braking upgrade stat added** — `DroneStats` now has 4 stats (Thrust, BatteryCapacity, CargoCapacity, Braking). Damping=2 at base gives responsive stops without killing speed.
+- **ThrusterTrail pooling** — static `Queue<TrailParticle>` replaces per-particle `new GameObject()` / `Destroy()`.
+- **CoreDrop pooling** — `SimplePool<CoreDrop>` on `GameManager`, `LateUpdate` returns dead drops to pool (fixed leak where offscreen despawn skipped Release).
+- **Unique trail color per drone** — static 6-color palette, all 4 arms same color, auto-assigned on Awake.
+- **Bay drone count TMP label** wired in DroneBay prefab.
+- **`BuildBayPanel.cs` deleted** (dead code).
+
+### Deferred to Iter 4
+
+- Collector upgrades (deposit multiplier, attraction range) — `IPointerClickHandler` stub wired, no panel yet.
 
 ---
 
