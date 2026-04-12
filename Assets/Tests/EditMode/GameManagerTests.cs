@@ -118,5 +118,55 @@ namespace MeteorIdle.Tests.Editor
             // UI sync stays correct even when the value happens to match.
             Assert.AreEqual(1, events);
         }
+
+        // --- Iter 4: Level auto-advancement tests ---
+
+        [Test]
+        public void AddMoney_WhenThresholdMet_DeductsCostAndAdvancesLevel()
+        {
+            var lsGo = new GameObject("LevelState", typeof(LevelState));
+            var ls = lsGo.GetComponent<LevelState>();
+            TestHelpers.InvokeAwake(ls);
+
+            _gm.SetMoney(0);
+            _gm.AddMoney(10); // threshold at level 1 = 10
+
+            Assert.AreEqual(2, ls.CurrentLevel);
+            Assert.AreEqual(0, _gm.Money);
+
+            Object.DestroyImmediate(lsGo);
+        }
+
+        [Test]
+        public void AddMoney_BelowThreshold_DoesNotAdvance()
+        {
+            var lsGo = new GameObject("LevelState", typeof(LevelState));
+            var ls = lsGo.GetComponent<LevelState>();
+            TestHelpers.InvokeAwake(ls);
+
+            _gm.SetMoney(0);
+            _gm.AddMoney(5);
+
+            Assert.AreEqual(1, ls.CurrentLevel);
+            Assert.AreEqual(5, _gm.Money);
+
+            Object.DestroyImmediate(lsGo);
+        }
+
+        [Test]
+        public void AddMoney_ExceedsThreshold_KeepsRemainder()
+        {
+            var lsGo = new GameObject("LevelState", typeof(LevelState));
+            var ls = lsGo.GetComponent<LevelState>();
+            TestHelpers.InvokeAwake(ls);
+
+            _gm.SetMoney(0);
+            _gm.AddMoney(15);
+
+            Assert.AreEqual(2, ls.CurrentLevel);
+            Assert.AreEqual(5, _gm.Money);
+
+            Object.DestroyImmediate(lsGo);
+        }
     }
 }

@@ -49,6 +49,17 @@ public class GameManager : MonoBehaviour
         if (amount <= 0) return;
         Money += amount;
         OnMoneyChanged?.Invoke(Money);
+
+        // Iter 4: auto-advance level when money reaches threshold
+        if (LevelState.Instance != null)
+        {
+            int threshold = LevelState.Instance.Threshold;
+            if (threshold > 0 && LevelState.Instance.TryAdvance(Money))
+            {
+                Money -= threshold;
+                OnMoneyChanged?.Invoke(Money);
+            }
+        }
     }
 
     public bool TrySpend(int amount)
