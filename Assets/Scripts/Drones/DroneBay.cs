@@ -1,6 +1,7 @@
 using UnityEngine;
+using UnityEngine.EventSystems;
 
-public class DroneBay : MonoBehaviour, ICollectorDroneEnvironment
+public class DroneBay : MonoBehaviour, ICollectorDroneEnvironment, IPointerClickHandler
 {
     public enum DoorState
     {
@@ -114,7 +115,7 @@ public class DroneBay : MonoBehaviour, ICollectorDroneEnvironment
 
     public event System.Action<DroneBay> Clicked;
 
-    private void OnMouseDown()
+    public void OnPointerClick(PointerEventData eventData)
     {
         Clicked?.Invoke(this);
     }

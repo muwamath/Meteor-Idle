@@ -66,4 +66,13 @@ public class GameManager : MonoBehaviour
         if (drop == null) return;
         activeDrops.Remove(drop);
     }
+
+    private void LateUpdate()
+    {
+        for (int i = activeDrops.Count - 1; i >= 0; i--)
+        {
+            var d = activeDrops[i];
+            if (d == null || !d.IsAlive) activeDrops.RemoveAt(i);
+        }
+    }
 }

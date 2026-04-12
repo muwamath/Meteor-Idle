@@ -44,8 +44,11 @@ public class CoreDrop : MonoBehaviour
         if (sr != null) sr.color = Color.white;
     }
 
-    // Called once per frame from GameManager.Update for every active drop.
-    // Drops drift down, and despawn when they cross despawnY.
+    private void Update()
+    {
+        TickDrift(Time.deltaTime);
+    }
+
     public void TickDrift(float dt)
     {
         if (!alive) return;

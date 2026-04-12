@@ -40,6 +40,25 @@ public class BayManager : MonoBehaviour
                 bay.gameObject.SetActive(false);
             }
         }
+
+        if (bayStats != null) bayStats.OnChanged += OnBayStatsChanged;
+    }
+
+    private void OnDestroy()
+    {
+        if (bayStats != null) bayStats.OnChanged -= OnBayStatsChanged;
+    }
+
+    private void OnBayStatsChanged()
+    {
+        int targetDrones = bayStats != null ? Mathf.RoundToInt(bayStats.dronesPerBay.CurrentValue) : 1;
+        foreach (var bay in bays)
+        {
+            if (!bay.gameObject.activeInHierarchy) continue;
+            int current = bay.GetComponentsInChildren<CollectorDrone>(false).Length;
+            for (int i = current; i < targetDrones; i++)
+                SpawnDroneFor(bay);
+        }
     }
 
     private void SpawnDroneFor(DroneBay bay)
