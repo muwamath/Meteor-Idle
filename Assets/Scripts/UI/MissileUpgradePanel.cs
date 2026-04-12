@@ -44,6 +44,8 @@ public class MissileUpgradePanel : MonoBehaviour
         if (sellButton != null)
             sellButton.onClick.AddListener(OnSellClicked);
 
+        var cg = GetComponent<CanvasGroup>();
+        if (cg != null) PanelManager.Register(cg);
         SetVisible(false);
     }
 
@@ -90,6 +92,7 @@ public class MissileUpgradePanel : MonoBehaviour
 
         if (currentStats != null) currentStats.OnChanged += OnStatsChanged;
 
+        PanelManager.ShowExclusive(GetComponent<CanvasGroup>());
         SetVisible(true);
         RefreshAll();
     }

@@ -27,9 +27,9 @@ public class DroneStats : ScriptableObject
         public int NextCost => Mathf.RoundToInt(baseCost * Mathf.Pow(costGrowth, level));
     }
 
-    public Stat thrust          = new Stat { id = DroneStatId.Thrust,          displayName = "Thrust",           baseValue = 4f,  perLevelAdd = 1.0f, baseCost = 25 };
-    public Stat batteryCapacity = new Stat { id = DroneStatId.BatteryCapacity, displayName = "Battery Capacity", baseValue = 10f, perLevelAdd = 3f,   baseCost = 30 };
-    public Stat cargoCapacity   = new Stat { id = DroneStatId.CargoCapacity,   displayName = "Cargo Capacity",   baseValue = 1f,  perLevelAdd = 1f,   baseCost = 50 };
+    public Stat thrust          = new Stat { id = DroneStatId.Thrust,          displayName = "Thrust",           baseValue = 4f,  perLevelAdd = 1.0f, baseCost = 1, costGrowth = 1f };
+    public Stat batteryCapacity = new Stat { id = DroneStatId.BatteryCapacity, displayName = "Battery Capacity", baseValue = 10f, perLevelAdd = 3f,   baseCost = 1, costGrowth = 1f };
+    public Stat cargoCapacity   = new Stat { id = DroneStatId.CargoCapacity,   displayName = "Cargo Capacity",   baseValue = 1f,  perLevelAdd = 1f,   baseCost = 1, costGrowth = 1f };
 
     public event Action OnChanged;
 

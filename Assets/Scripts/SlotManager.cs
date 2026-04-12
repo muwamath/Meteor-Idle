@@ -13,8 +13,8 @@ public class SlotManager : MonoBehaviour
     [SerializeField] private int prebuiltIndex = 1;
     [SerializeField] private WeaponType prebuiltWeapon = WeaponType.Missile;
     [FormerlySerializedAs("buildCosts")]
-    [SerializeField] private int[] missileBuildCosts = { 100, 300 };
-    [SerializeField] private int[] railgunBuildCosts = { 200, 600 };
+    [SerializeField] private int[] missileBuildCosts = { 1, 1 };
+    [SerializeField] private int[] railgunBuildCosts = { 1, 1 };
 
     [FormerlySerializedAs("upgradePanel")]
     [SerializeField] private MissileUpgradePanel upgradePanelMissile;

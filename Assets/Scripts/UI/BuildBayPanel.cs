@@ -21,6 +21,7 @@ public class BuildBayPanel : MonoBehaviour
         if (confirmButton != null) confirmButton.onClick.AddListener(OnConfirmClicked);
         moneyListener = _ => Refresh();
         if (GameManager.Instance != null) GameManager.Instance.OnMoneyChanged += moneyListener;
+        if (canvasGroup != null) PanelManager.Register(canvasGroup);
         SetVisible(false);
     }
 

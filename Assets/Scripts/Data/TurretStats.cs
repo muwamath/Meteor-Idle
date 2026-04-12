@@ -31,14 +31,14 @@ public class TurretStats : ScriptableObject
     }
 
     // Launcher stats
-    public Stat fireRate      = new Stat { id = StatId.FireRate,      displayName = "Fire Rate",      baseValue = 0.5f, perLevelAdd = 0.15f, baseCost = 10 };
-    public Stat rotationSpeed = new Stat { id = StatId.RotationSpeed, displayName = "Rotation Speed", baseValue = 30f,  perLevelAdd = 15f,   baseCost = 12 };
+    public Stat fireRate      = new Stat { id = StatId.FireRate,      displayName = "Fire Rate",      baseValue = 0.5f, perLevelAdd = 0.15f, baseCost = 1, costGrowth = 1f };
+    public Stat rotationSpeed = new Stat { id = StatId.RotationSpeed, displayName = "Rotation Speed", baseValue = 30f,  perLevelAdd = 15f,   baseCost = 1, costGrowth = 1f };
 
     // Missile stats
-    public Stat missileSpeed = new Stat { id = StatId.MissileSpeed, displayName = "Missile Speed", baseValue = 4f,    perLevelAdd = 0.6f,  baseCost = 15 };
-    public Stat damage       = new Stat { id = StatId.Damage,       displayName = "Damage",        baseValue = 1f,    perLevelAdd = 1f,    baseCost = 20 };
-    public Stat blastRadius  = new Stat { id = StatId.BlastRadius,  displayName = "Blast Radius",  baseValue = 0.10f, perLevelAdd = 0.25f, baseCost = 40 };
-    public Stat homing       = new Stat { id = StatId.Homing,       displayName = "Homing",        baseValue = 0f,    perLevelAdd = 30f,   baseCost = 35 };
+    public Stat missileSpeed = new Stat { id = StatId.MissileSpeed, displayName = "Missile Speed", baseValue = 4f,    perLevelAdd = 0.6f,  baseCost = 1, costGrowth = 1f };
+    public Stat damage       = new Stat { id = StatId.Damage,       displayName = "Damage",        baseValue = 1f,    perLevelAdd = 1f,    baseCost = 1, costGrowth = 1f };
+    public Stat blastRadius  = new Stat { id = StatId.BlastRadius,  displayName = "Blast Radius",  baseValue = 0.10f, perLevelAdd = 0.25f, baseCost = 1, costGrowth = 1f };
+    public Stat homing       = new Stat { id = StatId.Homing,       displayName = "Homing",        baseValue = 0f,    perLevelAdd = 30f,   baseCost = 1, costGrowth = 1f };
 
     public event Action OnChanged;
 

@@ -37,6 +37,7 @@ public class BuildSlotPanel : MonoBehaviour
         if (GameManager.Instance != null)
             GameManager.Instance.OnMoneyChanged += moneyListener;
 
+        if (canvasGroup != null) PanelManager.Register(canvasGroup);
         SetVisible(false);
     }
 
@@ -60,6 +61,7 @@ public class BuildSlotPanel : MonoBehaviour
             int cost = costLookup != null ? costLookup(weapons[i]) : 0;
             buttons[i].Bind(weapons[i], cost, OnWeaponClicked);
         }
+        PanelManager.ShowExclusive(canvasGroup);
         SetVisible(true);
         RefreshAll();
     }

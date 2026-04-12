@@ -28,8 +28,8 @@ public class BayStats : ScriptableObject
         public bool IsMaxed => maxLevel > 0 && level >= maxLevel;
     }
 
-    public Stat reloadSpeed  = new Stat { id = BayStatId.ReloadSpeed,  displayName = "Reload Speed",   baseValue = 1f, perLevelAdd = 0.25f, baseCost = 40,  maxLevel = 0 };
-    public Stat dronesPerBay = new Stat { id = BayStatId.DronesPerBay, displayName = "Drones Per Bay", baseValue = 1f, perLevelAdd = 1f,    baseCost = 150, maxLevel = 2 };
+    public Stat reloadSpeed  = new Stat { id = BayStatId.ReloadSpeed,  displayName = "Reload Speed",   baseValue = 1f, perLevelAdd = 0.25f, baseCost = 1, costGrowth = 1f, maxLevel = 0 };
+    public Stat dronesPerBay = new Stat { id = BayStatId.DronesPerBay, displayName = "Drones Per Bay", baseValue = 1f, perLevelAdd = 1f,    baseCost = 1, costGrowth = 1f, maxLevel = 2 };
 
     public event Action OnChanged;
 

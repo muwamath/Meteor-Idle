@@ -17,14 +17,14 @@ MonoBehaviour:
     displayName: Reload Speed
     baseValue: 1
     perLevelAdd: 0.25
-    baseCost: 40
-    costGrowth: 1.6
+    baseCost: 1
+    costGrowth: 1
     maxLevel: 0
   dronesPerBay:
     id: 1
     displayName: Drones Per Bay
     baseValue: 1
     perLevelAdd: 1
-    baseCost: 150
-    costGrowth: 1.6
+    baseCost: 1
+    costGrowth: 1
     maxLevel: 2

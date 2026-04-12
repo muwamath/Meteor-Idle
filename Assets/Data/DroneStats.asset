@@ -17,19 +17,19 @@ MonoBehaviour:
     displayName: Thrust
     baseValue: 4
     perLevelAdd: 1
-    baseCost: 25
-    costGrowth: 1.6
+    baseCost: 1
+    costGrowth: 1
   batteryCapacity:
     id: 1
     displayName: Battery Capacity
     baseValue: 120
     perLevelAdd: 3
-    baseCost: 30
-    costGrowth: 1.6
+    baseCost: 1
+    costGrowth: 1
   cargoCapacity:
     id: 2
     displayName: Cargo Capacity
     baseValue: 1
     perLevelAdd: 1
-    baseCost: 50
-    costGrowth: 1.6
+    baseCost: 1
+    costGrowth: 1

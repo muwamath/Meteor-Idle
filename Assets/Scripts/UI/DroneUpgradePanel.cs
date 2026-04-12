@@ -38,6 +38,8 @@ public class DroneUpgradePanel : MonoBehaviour
         if (bayManager.BayStats != null)   bayManager.BayStats.OnChanged   += OnStatsChanged;
         if (bayManager.DroneStats != null) bayManager.DroneStats.OnChanged += OnStatsChanged;
 
+        var cg = GetComponent<CanvasGroup>();
+        if (cg != null) PanelManager.Register(cg);
         SetVisible(false);
     }
 
@@ -56,6 +58,7 @@ public class DroneUpgradePanel : MonoBehaviour
     {
         var cg = GetComponent<CanvasGroup>();
         bool visible = cg != null && cg.alpha > 0.5f;
+        if (!visible) PanelManager.ShowExclusive(GetComponent<CanvasGroup>());
         SetVisible(!visible);
         if (!visible) RefreshAll();
     }
