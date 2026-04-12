@@ -2,17 +2,17 @@
 
 ## Overview
 
-A level progression system that turns Meteor Idle from a single-session sandbox into a long-burn idle game. 150 levels to feel powerful. Cores are the universal currency — spent on upgrades AND consumed automatically to advance levels. Boss fights gate every 10th level.
+A level progression system that turns Meteor Idle from a single-session sandbox into a long-burn idle game. 150 levels to feel powerful. Money is purely for upgrades. Level advancement is driven by core voxel kills — destroy enough cores to advance. Boss fights gate every 10th level.
 
 ## Core Loop
 
 1. Meteors fall. Player's weapons destroy them. Core voxels spawn CoreDrops.
 2. Drones collect CoreDrops and deliver them to the Collector for money.
-3. Money accumulates. Player can spend on weapon/drone upgrades at any time.
-4. When money reaches the current level's threshold, it's automatically deducted and the player advances.
+3. Money accumulates. Player spends on weapon/drone upgrades only.
+4. Each core voxel destroyed counts toward the level's kill threshold. When met, the player advances automatically.
 5. At every 10th level, normal spawning stops. A single boss asteroid spawns. Kill it to advance. Fail and restart the block.
 
-The tension: upgrades and advancement compete for the same pool. Spending on upgrades slows level progression but makes current and future levels easier.
+Money and progression are independent. Spending on upgrades never slows level advancement — it only makes future levels easier.
 
 ## Level System
 
@@ -20,29 +20,29 @@ The tension: upgrades and advancement compete for the same pool. Spending on upg
 
 - **150 levels** to reach "powerful." Progression continues beyond 150 but the 1-150 arc is the designed experience.
 - **Blocks of 10.** Levels 1-10 are block 1, 11-20 are block 2, etc.
-- **Boss at every 10th level** (10, 20, 30...). Boss levels have no core threshold — kill the boss to advance.
-- **Regular levels (non-boss):** automatic advancement when money >= threshold. Threshold is deducted from money on advance.
+- **Boss at every 10th level** (10, 20, 30...). Boss levels have no core kill threshold — kill the boss to advance.
+- **Regular levels (non-boss):** automatic advancement when core kills reach the threshold. Money is never deducted.
+- **Per-block counter:** `coreKillsThisBlock` resets to 0 on each level advance, boss defeat, and boss failure.
 
 ### Threshold Formula
 
-Exponential growth, tuned so 150 levels feels like a long casual session, not a wall.
+Square-root growth, tuned so each level takes a few minutes of play.
 
 ```
-threshold(level) = baseCost * growthRate ^ (level - 1)
+threshold(level) = baseCoreKills * level ^ coreKillGrowthExponent
 ```
 
 Starting values (tuning pass will adjust):
-- `baseCost = 10`
-- `growthRate = 1.08`
+- `baseCoreKills = 3`
+- `coreKillGrowthExponent = 0.5`
 
 This gives roughly:
-- Level 1: 10 cores
-- Level 10: ~22 cores
-- Level 50: ~470 cores
-- Level 100: ~10,700 cores
-- Level 150: ~245,000 cores
+- Level 1: 3 core kills
+- Level 9: 9 core kills
+- Level 25: 15 core kills
+- Level 100: 30 core kills
 
-These numbers need to be balanced against core value scaling so progression feels smooth, not grindy. The tuning pass is a dedicated phase.
+Higher-level meteors have more cores per meteor (via `CoreCountBonus`), so progression rate stays reasonable without requiring dramatically more meteors to be killed.
 
 ### Boss Failure
 
