@@ -111,4 +111,11 @@ public class DroneBay : MonoBehaviour, ICollectorDroneEnvironment
     {
         if (GameManager.Instance != null) GameManager.Instance.AddMoney(value);
     }
+
+    public event System.Action<DroneBay> Clicked;
+
+    private void OnMouseDown()
+    {
+        Clicked?.Invoke(this);
+    }
 }

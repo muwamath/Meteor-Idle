@@ -499,6 +499,63 @@ RectTransform:
   m_AnchoredPosition: {x: 0, y: 0}
   m_SizeDelta: {x: 0, y: 0}
   m_Pivot: {x: 0, y: 0}
+--- !u!1 &157480830
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 157480832}
+  - component: {fileID: 157480831}
+  m_Layer: 0
+  m_Name: BayManager
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &157480831
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 157480830}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: cd14f7cc6540149519d06207be701f11, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: MeteorIdle::BayManager
+  bayPrefab: {fileID: 6387276394604093018, guid: 9593f4100220b4c3e8c6a0e5388dec3b, type: 3}
+  dronePrefab: {fileID: 1828397025992626473, guid: 07a93921ac749497da671d741b91ed8c, type: 3}
+  bayCount: 3
+  bayY: -8.26
+  bayStartX: 6
+  baySpacing: 2.5
+  prebuiltIndex: 0
+  bayBuildCosts: c800000058020000
+  upgradePanel: {fileID: 0}
+  buildPanel: {fileID: 0}
+  meteorSpawner: {fileID: 1326236805}
+  droneStats: {fileID: 11400000, guid: 4bf351d7b94bf4e7fa5c5329614f5c0d, type: 2}
+  bayStats: {fileID: 11400000, guid: afb2b1493fab840c0b0d393597abb417, type: 2}
+--- !u!4 &157480832
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 157480830}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &163190789
 GameObject:
   m_ObjectHideFlags: 0
@@ -3431,6 +3488,7 @@ MonoBehaviour:
   slotPrefab: {fileID: 8514671401862806112, guid: f28cc9da6efa145edaf914a0b8f72d4d, type: 3}
   slotCount: 3
   slotY: -8.26
+  slotStartX: -2
   slotSpacing: 8
   prebuiltIndex: 1
   prebuiltWeapon: 0
@@ -5378,3 +5436,4 @@ SceneRoots:
   - {fileID: 1733514383}
   - {fileID: 103849127}
   - {fileID: 1507192546}
+  - {fileID: 157480832}

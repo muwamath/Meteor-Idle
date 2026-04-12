@@ -22,13 +22,24 @@ public class UpgradeButton : MonoBehaviour
     private RailgunStatId railgunStatId;
     private Action<RailgunStatId> onRailgunClick;
 
+    // Drone stat binding
+    private DroneStats droneStats;
+    private DroneStatId droneStatId;
+    private Action<DroneStatId> onDroneClick;
+
+    // Bay stat binding
+    private BayStats bayStats;
+    private BayStatId bayStatId;
+    private Action<BayStatId> onBayClick;
+
     public void Bind(TurretStats stats, StatId statId, Action<StatId> onClick)
     {
         missileStats = stats;
         missileStatId = statId;
         onMissileClick = onClick;
-        railgunStats = null;
-        onRailgunClick = null;
+        railgunStats = null; onRailgunClick = null;
+        droneStats = null; onDroneClick = null;
+        bayStats = null; onBayClick = null;
         WireButtonClick();
     }
 
@@ -37,8 +48,31 @@ public class UpgradeButton : MonoBehaviour
         railgunStats = stats;
         railgunStatId = statId;
         onRailgunClick = onClick;
-        missileStats = null;
-        onMissileClick = null;
+        missileStats = null; onMissileClick = null;
+        droneStats = null; onDroneClick = null;
+        bayStats = null; onBayClick = null;
+        WireButtonClick();
+    }
+
+    public void BindDrone(DroneStats stats, DroneStatId statId, Action<DroneStatId> onClick)
+    {
+        droneStats = stats;
+        droneStatId = statId;
+        onDroneClick = onClick;
+        missileStats = null; onMissileClick = null;
+        railgunStats = null; onRailgunClick = null;
+        bayStats = null; onBayClick = null;
+        WireButtonClick();
+    }
+
+    public void BindBay(BayStats stats, BayStatId statId, Action<BayStatId> onClick)
+    {
+        bayStats = stats;
+        bayStatId = statId;
+        onBayClick = onClick;
+        missileStats = null; onMissileClick = null;
+        railgunStats = null; onRailgunClick = null;
+        droneStats = null; onDroneClick = null;
         WireButtonClick();
     }
 
@@ -49,6 +83,8 @@ public class UpgradeButton : MonoBehaviour
         button.onClick.AddListener(() => {
             if (onMissileClick != null) onMissileClick.Invoke(missileStatId);
             else if (onRailgunClick != null) onRailgunClick.Invoke(railgunStatId);
+            else if (onDroneClick != null) onDroneClick.Invoke(droneStatId);
+            else if (onBayClick != null) onBayClick.Invoke(bayStatId);
         });
     }
 
@@ -65,6 +101,28 @@ public class UpgradeButton : MonoBehaviour
         else if (railgunStats != null)
         {
             var stat = railgunStats.Get(railgunStatId);
+            if (stat == null) return;
+            if (stat.IsMaxed)
+            {
+                label.text = $"{stat.displayName}\nLvl {stat.level} — MAX";
+                if (button != null) button.interactable = false;
+            }
+            else
+            {
+                label.text = $"{stat.displayName}\nLvl {stat.level} — ${stat.NextCost}";
+                if (button != null) button.interactable = money >= stat.NextCost;
+            }
+        }
+        else if (droneStats != null)
+        {
+            var stat = droneStats.Get(droneStatId);
+            if (stat == null) return;
+            label.text = $"{stat.displayName}\nLvl {stat.level} — ${stat.NextCost}";
+            if (button != null) button.interactable = money >= stat.NextCost;
+        }
+        else if (bayStats != null)
+        {
+            var stat = bayStats.Get(bayStatId);
             if (stat == null) return;
             if (stat.IsMaxed)
             {

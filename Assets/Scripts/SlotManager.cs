@@ -7,6 +7,7 @@ public class SlotManager : MonoBehaviour
     [SerializeField] private BaseSlot slotPrefab;
     [SerializeField] private int slotCount = 3;
     [SerializeField] private float slotY = -8.26f;
+    [SerializeField] private float slotStartX = 0f;
     [SerializeField] private float slotSpacing = 8f;
     [SerializeField] private int prebuiltIndex = 1;
     [SerializeField] private WeaponType prebuiltWeapon = WeaponType.Missile;
@@ -32,7 +33,7 @@ public class SlotManager : MonoBehaviour
         if (upgradePanelMissile != null) upgradePanelMissile.SetSellHandler(SellSlot);
         if (upgradePanelRailgun != null) upgradePanelRailgun.SetSellHandler(SellSlot);
 
-        float startX = -slotSpacing * (slotCount - 1) * 0.5f;
+        float startX = slotStartX + (-slotSpacing * (slotCount - 1) * 0.5f);
         for (int i = 0; i < slotCount; i++)
         {
             var pos = new Vector3(startX + i * slotSpacing, slotY, 0f);
