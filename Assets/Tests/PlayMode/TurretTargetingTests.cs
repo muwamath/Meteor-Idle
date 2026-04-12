@@ -97,31 +97,71 @@ namespace MeteorIdle.Tests.PlayMode
         }
 
         [UnityTest]
-        public IEnumerator FindTarget_IgnoresCorelessMeteorsEvenIfAlive()
+        public IEnumerator FindTarget_IgnoresUntargetableMeteorsEvenIfAlive()
         {
             yield return SetupTurretScene();
 
-            // Closer meteor: alive but coreless (blast just the core cell).
-            // Farther meteor: fresh, cores intact. Closest-pick would prefer
-            // the closer one, but the HasLiveCore filter must skip it.
-            var closerCoreless = SpawnTestMeteor(new Vector3(0f, 3f, 0f), seed: 77, scale: 0.525f);
-            var fartherCored  = SpawnTestMeteor(new Vector3(0f, 5f, 0f), seed: 88);
-            _injectedActive.Add(closerCoreless);
+            // Closer meteor: alive but with no targetable cells (cores, gold,
+            // and explosive all stripped, only dirt + stone remain). Farther
+            // meteor: fresh, cores intact. Closest-pick would prefer the
+            // closer one, but HasAnyTargetable must skip it.
+            //
+            // Iter 2: a meteor can be alive but untargetable when ALL of its
+            // cells with targetingTier > 0 are gone. We can't just blast the
+            // cores anymore because gold or explosive may also be present.
+            // Strip every targetable cell to dirt via reflection.
+            var closerUntargetable = SpawnTestMeteor(new Vector3(0f, 3f, 0f), seed: 77, scale: 0.525f);
+            var fartherCored       = SpawnTestMeteor(new Vector3(0f, 5f, 0f), seed: 88);
+            _injectedActive.Add(closerUntargetable);
             _injectedActive.Add(fartherCored);
 
-            Assert.IsTrue(closerCoreless.PickRandomCoreVoxel(out int cgx, out int cgy));
-            Vector3 coreWorld = closerCoreless.GetVoxelWorldPosition(cgx, cgy);
-            closerCoreless.ApplyBlast(coreWorld, 0.05f);
-            Assert.IsFalse(closerCoreless.HasLiveCore,
-                "closer meteor should be coreless after targeted blast");
-            Assert.IsTrue(closerCoreless.IsAlive,
+            StripAllTargetable(closerUntargetable);
+            Assert.IsFalse(closerUntargetable.HasAnyTargetable,
+                "closer meteor should have no targetable cells after stripping");
+            Assert.IsTrue(closerUntargetable.IsAlive,
                 "closer meteor should still be alive — dirt remains");
 
             Assert.AreSame(
                 fartherCored, _turret.FindTargetForTest(),
-                "turret must skip the coreless meteor and target the cored one");
+                "turret must skip the untargetable meteor and target the cored one");
 
             TeardownScene();
+        }
+
+        // Iter 2 helper: walk the meteor's material[,] grid via reflection
+        // and replace every cell whose material has targetingTier > 0 with
+        // the Dirt material. This produces a meteor that is alive (cells
+        // remain) but has HasAnyTargetable == false.
+        private static void StripAllTargetable(Meteor meteor)
+        {
+            var registry = UnityEditor.AssetDatabase.LoadAssetAtPath<MaterialRegistry>(
+                "Assets/Data/MaterialRegistry.asset");
+            if (registry == null) return;
+            var dirt = registry.GetByName("Dirt");
+
+            var matField  = typeof(Meteor).GetField("material",
+                BindingFlags.NonPublic | BindingFlags.Instance);
+            var kindField = typeof(Meteor).GetField("kind",
+                BindingFlags.NonPublic | BindingFlags.Instance);
+            var hpField   = typeof(Meteor).GetField("hp",
+                BindingFlags.NonPublic | BindingFlags.Instance);
+            var matArr  = (VoxelMaterial[,])matField.GetValue(meteor);
+            var kindArr = (VoxelKind[,])kindField.GetValue(meteor);
+            var hpArr   = (int[,])hpField.GetValue(meteor);
+            if (matArr == null) return;
+
+            for (int y = 0; y < VoxelMeteorGenerator.GridSize; y++)
+            {
+                for (int x = 0; x < VoxelMeteorGenerator.GridSize; x++)
+                {
+                    var m = matArr[x, y];
+                    if (m == null) continue;
+                    if (m.targetingTier <= 0) continue;
+                    matArr[x, y]  = dirt;
+                    kindArr[x, y] = VoxelKind.Dirt;
+                    hpArr[x, y]   = dirt.baseHp;
+                }
+            }
         }
 
         [UnityTest]
@@ -141,7 +181,9 @@ namespace MeteorIdle.Tests.PlayMode
             _injectedActive.Add(farther);
 
             // Nuke the closer meteor — ApplyBlast with a huge radius destroys
-            // every live voxel, flipping IsAlive to false.
+            // every live voxel, flipping IsAlive to false. Iter 2 needs two
+            // passes because Stone is HP=2 and survives a single blast.
+            closer.ApplyBlast(closer.transform.position, 10f);
             closer.ApplyBlast(closer.transform.position, 10f);
             Assert.IsFalse(closer.IsAlive, "closer meteor should now be dead");
 

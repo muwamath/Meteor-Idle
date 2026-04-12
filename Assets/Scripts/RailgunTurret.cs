@@ -124,13 +124,12 @@ public class RailgunTurret : TurretBase
         }
     }
 
-    // Pick a random live CORE voxel on target to aim at. Re-pick only when
-    // we need to (no voxel, different target, or the cached core died).
-    // Called once per Update tick so the barrel rotates smoothly toward a
-    // stable point rather than jittering between randomly-picked voxels.
-    // Using IsCoreVoxel instead of IsVoxelPresent means dirt that happens
-    // to land under the cached coords (shouldn't happen — cores don't turn
-    // into dirt — but defensive) triggers a re-pick.
+    // Pick a random live targetable voxel on target to aim at, picked from
+    // the highest-priority tier present (gold > explosive > core). Re-pick
+    // only when we need to (no voxel, different target, or the cached cell
+    // died). Called once per Update tick so the barrel rotates smoothly
+    // toward a stable point rather than jittering between randomly-picked
+    // voxels.
     private void RefreshAimVoxel(Meteor target)
     {
         bool cachedStillValid =
@@ -141,7 +140,7 @@ public class RailgunTurret : TurretBase
         if (cachedStillValid) return;
 
         aimVoxelTarget = target;
-        hasAimVoxel = target.PickRandomCoreVoxel(out aimVoxelGx, out aimVoxelGy);
+        hasAimVoxel = target.PickPriorityVoxel(out aimVoxelGx, out aimVoxelGy);
     }
 
     protected override void Fire(Meteor target)

@@ -80,6 +80,23 @@ namespace MeteorIdle.Tests.PlayMode
             if (meteorsLayer >= 0) go.layer = meteorsLayer;
 
             var meteor = go.GetComponent<Meteor>();
+
+            // Iter 2: inject the MaterialRegistry before Spawn so the
+            // generator emits VoxelMaterial[,] for stone/gold/explosive
+            // placements. Without this, material[,] stays null and the
+            // Iter 1 backward-compat path runs (cores still work, but new
+            // material variety is invisible).
+#if UNITY_EDITOR
+            var registry = UnityEditor.AssetDatabase.LoadAssetAtPath<MaterialRegistry>(
+                "Assets/Data/MaterialRegistry.asset");
+            if (registry != null)
+            {
+                var f = typeof(Meteor).GetField("materialRegistry",
+                    System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+                f?.SetValue(meteor, registry);
+            }
+#endif
+
             meteor.Spawn(null, position, seed, scale);
             return meteor;
         }

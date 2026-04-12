@@ -122,6 +122,11 @@ namespace MeteorIdle.Tests.PlayMode
             // the meteor so the guard (target.IsAlive && IsVoxelPresent)
             // flips to false and steering must cease.
             yield return new WaitForSeconds(0.1f);
+            // Iter 2: Stone HP=2 needs a second blanket pass; cores at scale
+            // 0.525 are HP=1 and die on the first blast, but stone clumps
+            // (when present) survive a single blast. Two passes guarantee
+            // every cell is gone regardless of material composition.
+            meteor.ApplyBlast(meteor.transform.position, 10f);
             meteor.ApplyBlast(meteor.transform.position, 10f);
             Assert.IsFalse(meteor.IsAlive, "meteor should be dead after blanket blast");
 

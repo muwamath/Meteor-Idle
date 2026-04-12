@@ -89,10 +89,11 @@ public class RailgunRound : MonoBehaviour
             remainingWeight -= damageDealt;
             alreadyTunneled.Add(meteor);
 
-            // Core-only economy: dirt tunneled on the way to (or past) a
-            // core is free — pays nothing. Only core voxels destroyed pay
-            // out, at CoreBaseValue per core.
-            int payout = result.coreDestroyed * Meteor.CoreBaseValue;
+            // Iter 2: per-material economy. result.TotalPayout sums
+            // payoutPerCell across every destroyed cell — dirt and stone
+            // pay 0 (free pass-through), gold/core/explosive each contribute
+            // their own value. A pure-dirt tunnel pays nothing.
+            int payout = result.TotalPayout;
             if (payout > 0 && GameManager.Instance != null)
                 GameManager.Instance.AddMoney(payout);
         }

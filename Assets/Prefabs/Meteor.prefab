@@ -148,3 +148,4 @@ MonoBehaviour:
   fadeStartY: -7.88
   fadeDuration: 0.5
   voxelChunkPrefab: {fileID: 4872757474425155906, guid: 2f8ec547c3e534e389bc9a752d9377fe, type: 3}
+  materialRegistry: {fileID: 11400000, guid: 9a8f5fe21dfdb4114b781089b9dd35a5, type: 2}

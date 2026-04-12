@@ -42,14 +42,14 @@ public class MissileTurret : TurretBase
 
     protected override void Fire(Meteor target)
     {
-        // Iter 1: turrets only ever aim at core voxels. FindTarget already
-        // filtered for HasLiveCore, so PickRandomCoreVoxel should almost
-        // always succeed here. The only failure mode is a race: the target's
-        // last core died between FindTarget and Fire in the same frame. In
-        // that case we skip the shot rather than firing blind at dirt —
-        // "never intentionally aim at dirt" is the rule.
+        // Iter 2: aim at the highest-priority targetable cell on this meteor
+        // (gold > explosive > core). FindTarget already filtered for
+        // HasAnyTargetable, so PickPriorityVoxel should almost always
+        // succeed. The only failure mode is a race: the target's last
+        // targetable cell died between FindTarget and Fire in the same
+        // frame. In that case we skip the shot rather than firing at dirt.
         int gx = 0, gy = 0;
-        if (!target.PickRandomCoreVoxel(out gx, out gy)) return;
+        if (!target.PickPriorityVoxel(out gx, out gy)) return;
 
         var missile = missilePool.Get();
         Vector3 spawnPos = muzzle != null ? muzzle.position : barrel.position;

@@ -95,9 +95,12 @@ public class Missile : MonoBehaviour
         float totalRadius = impactRadius + blastRadius;
         var result = meteor.ApplyBlast(transform.position, totalRadius);
 
-        // Core-only economy: dirt pays nothing, cores pay CoreBaseValue each.
-        // A dirt-only hit is silent (no money, no floating text).
-        int payout = result.coreDestroyed * Meteor.CoreBaseValue;
+        // Iter 2: per-material economy. result.totalPayout sums payoutPerCell
+        // across every destroyed cell, so dirt+stone hits stay silent and any
+        // gold/explosive/core blown up in the blast adds its own value. The
+        // floating text + AddMoney guard on payout > 0 keeps dirt-only hits
+        // visually quiet.
+        int payout = result.TotalPayout;
         if (payout > 0)
         {
             if (GameManager.Instance != null)
