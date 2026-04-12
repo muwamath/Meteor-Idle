@@ -9,5 +9,7 @@ public interface ICollectorDroneEnvironment
     void RequestOpenDoors();
     void RequestCloseDoors();
 
+    float ReloadSpeed { get; }
+
     CoreDrop FindNearestUnclaimedDrop(Vector3 from, float maxDistance);
 }

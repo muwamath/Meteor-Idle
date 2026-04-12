@@ -18,12 +18,14 @@ public class DroneBay : MonoBehaviour, ICollectorDroneEnvironment, IPointerClick
     [SerializeField] private TMPro.TMP_Text droneCountLabel;
 
     private Vector3 collectorPosition;
+    private float reloadSpeed = 1f;
 
     public DoorState Doors { get; private set; } = DoorState.Closed;
     public bool IsOpen => Doors == DoorState.Open;
     public Vector3 BayPosition => transform.position;
     public Vector3 CollectorPosition => collectorPosition;
     public bool BayDoorsOpen => IsOpen;
+    public float ReloadSpeed => reloadSpeed;
 
     public float LeftDoorLocalRotationZ => leftDoor != null
         ? leftDoor.localRotation.eulerAngles.z : 0f;
@@ -34,6 +36,7 @@ public class DroneBay : MonoBehaviour, ICollectorDroneEnvironment, IPointerClick
     private static readonly float[] LeftClosingKeyframes = { 90f, 45f, 0f };
 
     public void SetCollectorPosition(Vector3 pos) { collectorPosition = pos; }
+    public void SetReloadSpeed(float speed) { reloadSpeed = speed; }
 
     private void Awake()
     {

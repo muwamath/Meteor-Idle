@@ -115,7 +115,7 @@ public class CollectorDrone : MonoBehaviour
 
     private void TickIdle(float dt)
     {
-        battery = Mathf.Min(batteryCapacity, battery + dt);
+        battery = Mathf.Min(batteryCapacity, battery + dt * env.ReloadSpeed);
         if (battery < batteryCapacity) return;
         var drop = env.FindNearestUnclaimedDrop(env.BayPosition, seekMaxRange);
         if (drop == null) return;

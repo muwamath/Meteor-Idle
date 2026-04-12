@@ -164,6 +164,7 @@ namespace MeteorIdle.Tests.PlayMode
         public Vector3 BayPosition { get; set; }
         public Vector3 CollectorPosition { get; set; }
         public bool BayDoorsOpen { get; set; }
+        public float ReloadSpeed { get; set; } = 1f;
         public void RequestOpenDoors()  { BayDoorsOpen = true; }
         public void RequestCloseDoors() { BayDoorsOpen = false; }
         public CoreDrop FindNearestUnclaimedDrop(Vector3 from, float maxDistance)

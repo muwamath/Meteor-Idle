@@ -28,26 +28,52 @@ public class BayManager : MonoBehaviour
             bays.Add(bay);
             bay.Clicked += HandleBayClicked;
             if (collector != null) bay.SetCollectorPosition(collector.Position);
+            if (bayStats != null) bay.SetReloadSpeed(bayStats.reloadSpeed.CurrentValue);
             SpawnDroneFor(bay);
         }
 
         if (bayStats != null) bayStats.OnChanged += OnBayStatsChanged;
+        if (droneStats != null) droneStats.OnChanged += OnDroneStatsChanged;
     }
 
     private void OnDestroy()
     {
         if (bayStats != null) bayStats.OnChanged -= OnBayStatsChanged;
+        if (droneStats != null) droneStats.OnChanged -= OnDroneStatsChanged;
     }
 
     private void OnBayStatsChanged()
     {
+        float speed = bayStats != null ? bayStats.reloadSpeed.CurrentValue : 1f;
         int targetDrones = bayStats != null ? Mathf.RoundToInt(bayStats.dronesPerBay.CurrentValue) : 1;
         foreach (var bay in bays)
         {
+            bay.SetReloadSpeed(speed);
             if (!bay.gameObject.activeInHierarchy) continue;
             int current = bay.GetComponentsInChildren<CollectorDrone>(false).Length;
             for (int i = current; i < targetDrones; i++)
                 SpawnDroneFor(bay);
+        }
+    }
+
+    private void OnDroneStatsChanged()
+    {
+        float thrust = droneStats != null ? droneStats.thrust.CurrentValue : 4f;
+        float battery = droneStats != null ? droneStats.batteryCapacity.CurrentValue : 60f;
+        int cargo = droneStats != null ? Mathf.RoundToInt(droneStats.cargoCapacity.CurrentValue) : 1;
+        foreach (var bay in bays)
+        {
+            foreach (var drone in bay.GetComponentsInChildren<CollectorDrone>(true))
+            {
+                drone.Initialize(
+                    env: bay,
+                    thrust: thrust, damping: 1f,
+                    batteryCapacity: battery, cargoCapacity: cargo,
+                    reserveThresholdFraction: 0.3f,
+                    pickupRadius: 0.35f, dockRadius: 0.45f);
+                drone.SetMeteorSpawner(meteorSpawner);
+                if (collector != null) drone.SetCollector(collector);
+            }
         }
     }
 

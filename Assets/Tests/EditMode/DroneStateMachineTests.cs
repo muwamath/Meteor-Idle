@@ -9,6 +9,7 @@ namespace MeteorIdle.Tests.Editor
         public Vector3 BayPosition { get; set; } = Vector3.zero;
         public Vector3 CollectorPosition { get; set; } = new Vector3(0f, -3f, 0f);
         public bool BayDoorsOpen { get; set; }
+        public float ReloadSpeed { get; set; } = 1f;
         public int DoorOpenRequests;
         public int DoorCloseRequests;
         public List<CoreDrop> Drops = new List<CoreDrop>();
@@ -280,6 +281,22 @@ namespace MeteorIdle.Tests.Editor
                 if (drone.State == DroneState.Returning) break;
             }
             Assert.AreEqual(DroneState.Returning, drone.State);
+        }
+
+        [Test]
+        public void Idle_ReloadSpeed2x_RechargesTwiceAsFast()
+        {
+            var env = new MockEnvironment { ReloadSpeed = 2f };
+            var drone = MakeDrone(env);
+            // Drain battery so it's not full
+            typeof(CollectorDrone).GetField("battery",
+                System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)
+                .SetValue(drone, 5f);
+            float before = drone.Battery;
+            drone.Tick(1f);
+            float gained = drone.Battery - before;
+            // With ReloadSpeed=2, should gain 2.0 per second, not 1.0
+            Assert.AreEqual(2f, gained, 0.01f, "ReloadSpeed multiplies recharge rate");
         }
 
         [Test]
