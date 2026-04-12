@@ -1,8 +1,11 @@
 #if UNITY_EDITOR
+using System;
+using System.Diagnostics;
 using System.IO;
 using UnityEditor;
 using UnityEditor.Build.Reporting;
 using UnityEngine;
+using Debug = UnityEngine.Debug;
 
 public static class BuildScripts
 {
@@ -13,9 +16,53 @@ public static class BuildScripts
     // editor menu item, or Test Runner.
     private const string DevBuildMarker = ".dev-build-marker";
 
+    // Resources/BuildInfo.txt is read at runtime by OptionsPanel via
+    // Resources.Load<TextAsset>("BuildInfo"). It's gitignored — written
+    // immediately before each build so the packed version of the file
+    // reflects exactly which commit was built. Format: "<sha>|<iso-date>".
+    private const string BuildInfoResourcePath = "Assets/Resources/BuildInfo.txt";
+
+    private static void WriteBuildInfo(string variant)
+    {
+        Directory.CreateDirectory("Assets/Resources");
+        string sha = TryGetGitShortSha();
+        string when = DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm");
+        string body = $"{sha}|{when}|{variant}";
+        File.WriteAllText(BuildInfoResourcePath, body);
+        // Force the asset database to pick up the new content so the build
+        // pipeline packs the freshly-written file (not the cached one).
+        AssetDatabase.ImportAsset(BuildInfoResourcePath, ImportAssetOptions.ForceUpdate);
+        Debug.Log($"[BuildScripts] BuildInfo: {body}");
+    }
+
+    private static string TryGetGitShortSha()
+    {
+        try
+        {
+            var psi = new ProcessStartInfo("git", "rev-parse --short HEAD")
+            {
+                WorkingDirectory = ".",
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+                UseShellExecute = false,
+                CreateNoWindow = true,
+            };
+            using (var p = Process.Start(psi))
+            {
+                string output = p.StandardOutput.ReadToEnd().Trim();
+                p.WaitForExit(2000);
+                if (p.ExitCode == 0 && !string.IsNullOrEmpty(output)) return output;
+            }
+        }
+        catch { /* git not available or not a repo — fall back */ }
+        return "unknown";
+    }
+
     [MenuItem("Meteor Idle/Build/WebGL (Prod)")]
     public static void BuildWebGL()
     {
+        WriteBuildInfo("prod");
+
         var opts = new BuildPlayerOptions
         {
             scenes = new[] { "Assets/Scenes/Game.unity" },
@@ -52,6 +99,8 @@ public static class BuildScripts
     [MenuItem("Meteor Idle/Build/WebGL (Dev)")]
     public static void BuildWebGLDev()
     {
+        WriteBuildInfo("dev");
+
         var opts = new BuildPlayerOptions
         {
             scenes = new[] { "Assets/Scenes/Game.unity" },

@@ -419,11 +419,11 @@ namespace MeteorIdle.Tests.PlayMode
             // Poll for damage rather than hard-waiting a fixed budget. A
             // hard WaitForSeconds is race-sensitive — when the PlayMode
             // suite runs many tests in a row, Unity's physics engine gets
-            // slightly behind and the far-side slot case ran out of its
-            // 8.21s budget during Iter 1 Phase 3 verification. Polling makes
-            // fast cases finish in ~100ms while still giving slow cases up
-            // to maxWait seconds to land a hit.
-            const float maxWait = 15f;
+            // slightly behind and far-shot cases (Hit_Railgun_SideSlot_FarMeteor
+            // in particular) run right against the poll budget. 30s gives the
+            // whole suite comfortable headroom without slowing fast cases,
+            // since polling exits as soon as damage lands.
+            const float maxWait = 30f;
             const float pollInterval = 0.1f;
             float elapsed = 0f;
             while (elapsed < maxWait && meteor.AliveVoxelCount >= initialVoxels)

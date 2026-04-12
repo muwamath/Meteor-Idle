@@ -70,6 +70,14 @@ smoke-*.png
 # === User's private scratch notes (not for Claude to read unless directed) ===
 todo.md
 
+# === Build-time generated version stamp ===
+# Written by Assets/Editor/BuildScripts.cs immediately before BuildPipeline,
+# read at runtime by OptionsPanel via Resources.Load<TextAsset>("BuildInfo").
+# Gitignored so SHAs/timestamps don't pollute commits; missing file falls
+# back to "dev" in the editor.
+Assets/Resources/BuildInfo.txt
+Assets/Resources/BuildInfo.txt.meta
+
 # === Identity scrub patterns (see tools/identity-scrub.py) ===
 # Gitignored so the identity tokens themselves never land in the repo.
 # Populate on fresh clones from CLAUDE.md / feedback_identity_leaks.md.
