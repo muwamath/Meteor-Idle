@@ -58,23 +58,14 @@ public class BayManager : MonoBehaviour
 
     private void OnDroneStatsChanged()
     {
-        float thrust = droneStats != null ? droneStats.thrust.CurrentValue : 4f;
-        float damping = droneStats != null ? droneStats.braking.CurrentValue : 3f;
-        float battery = droneStats != null ? droneStats.batteryCapacity.CurrentValue : 60f;
+        float thrust = droneStats != null ? droneStats.thrust.CurrentValue : 8f;
+        float damping = droneStats != null ? droneStats.braking.CurrentValue : 2f;
+        float battery = droneStats != null ? droneStats.batteryCapacity.CurrentValue : 120f;
         int cargo = droneStats != null ? Mathf.RoundToInt(droneStats.cargoCapacity.CurrentValue) : 1;
         foreach (var bay in bays)
         {
             foreach (var drone in bay.GetComponentsInChildren<CollectorDrone>(true))
-            {
-                drone.Initialize(
-                    env: bay,
-                    thrust: thrust, damping: damping,
-                    batteryCapacity: battery, cargoCapacity: cargo,
-                    reserveThresholdFraction: 0.3f,
-                    pickupRadius: 0.35f, dockRadius: 0.45f);
-                drone.SetMeteorSpawner(meteorSpawner);
-                if (collector != null) drone.SetCollector(collector);
-            }
+                drone.UpdateStats(thrust, damping, battery, cargo);
         }
     }
 

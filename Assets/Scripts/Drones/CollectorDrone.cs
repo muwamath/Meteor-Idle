@@ -113,6 +113,17 @@ public class CollectorDrone : MonoBehaviour
         State = DroneState.Idle;
     }
 
+    public void UpdateStats(float thrust, float damping, float batteryCapacity, int cargoCapacity)
+    {
+        if (body != null)
+        {
+            body.ThrustCap = thrust;
+            body.DampingPerSec = damping;
+        }
+        this.batteryCapacity = batteryCapacity;
+        this.cargoCapacity = Mathf.Max(1, cargoCapacity);
+    }
+
     public void Tick(float dt)
     {
         if (env == null) return;
