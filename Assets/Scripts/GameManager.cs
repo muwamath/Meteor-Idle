@@ -50,15 +50,6 @@ public class GameManager : MonoBehaviour
     {
         if (amount <= 0) return;
         Money += amount;
-
-        // Iter 4: auto-advance level(s) when money reaches threshold.
-        // While loop handles cases where income exceeds multiple thresholds.
-        while (LevelState.Instance != null)
-        {
-            int threshold = LevelState.Instance.Threshold;
-            if (threshold <= 0 || !LevelState.Instance.TryAdvance(Money)) break;
-            Money -= threshold;
-        }
         OnMoneyChanged?.Invoke(Money);
     }
 

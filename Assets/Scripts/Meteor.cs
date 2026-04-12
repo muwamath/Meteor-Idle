@@ -374,8 +374,12 @@ public class Meteor : MonoBehaviour
                 aliveCount--;
 
                 // Legacy shim fields — keeps Iter 1 test assertions valid.
-                if (wasCore) result.coreDestroyed++;
-                else         result.dirtDestroyed++;
+                if (wasCore)
+                {
+                    result.coreDestroyed++;
+                    LevelState.Instance?.RecordCoreKill();
+                }
+                else result.dirtDestroyed++;
 
                 // Iter 2 per-material counts and payout sum.
                 AccumulateDestroyed(ref result, matHere);
@@ -490,8 +494,12 @@ public class Meteor : MonoBehaviour
                     anyPainted = true;
                     aliveCount--;
 
-                    if (wasCore) totalResult.coreDestroyed++;
-                    else         totalResult.dirtDestroyed++;
+                    if (wasCore)
+                    {
+                        totalResult.coreDestroyed++;
+                        LevelState.Instance?.RecordCoreKill();
+                    }
+                    else totalResult.dirtDestroyed++;
                     AccumulateDestroyed(ref totalResult, matHere);
 
                     // Iter 3: non-paying materials (cores) spawn CoreDrops.
@@ -602,8 +610,12 @@ public class Meteor : MonoBehaviour
                 anyPainted = true;
                 aliveCount--;
 
-                if (wasCore) result.coreDestroyed++;
-                else         result.dirtDestroyed++;
+                if (wasCore)
+                {
+                    result.coreDestroyed++;
+                    LevelState.Instance?.RecordCoreKill();
+                }
+                else result.dirtDestroyed++;
                 AccumulateDestroyed(ref result, matHere);
 
                 // Iter 3: non-paying materials (cores) spawn CoreDrops.

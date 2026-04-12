@@ -13,13 +13,12 @@ namespace MeteorIdle.Tests.PlayMode
         {
             yield return SetupScene();
 
-            // Clean up any existing LevelState singleton
             if (LevelState.Instance != null)
                 Object.Destroy(LevelState.Instance.gameObject);
             yield return null;
 
             _lsGo = new GameObject("TestLevelState", typeof(LevelState));
-            yield return null; // let Awake fire
+            yield return null;
         }
 
         private void TeardownWithLevelState()
@@ -29,37 +28,50 @@ namespace MeteorIdle.Tests.PlayMode
         }
 
         [UnityTest]
-        public IEnumerator AddMoney_AboveThreshold_AdvancesLevel()
+        public IEnumerator CoreKill_AtThreshold_AdvancesLevel()
         {
             yield return SetupWithLevelState();
 
             Assert.AreEqual(1, LevelState.Instance.CurrentLevel);
 
-            GameManager.Instance.SetMoney(0);
-            GameManager.Instance.AddMoney(10); // threshold at level 1 = 10
+            int threshold = LevelState.Instance.Threshold; // 3 at level 1
+            for (int i = 0; i < threshold; i++)
+                LevelState.Instance.RecordCoreKill();
 
             Assert.AreEqual(2, LevelState.Instance.CurrentLevel);
-            Assert.AreEqual(0, GameManager.Instance.Money);
+            Assert.AreEqual(0, LevelState.Instance.CoreKillsThisBlock);
 
             TeardownWithLevelState();
         }
 
         [UnityTest]
-        public IEnumerator BossLevel_DoesNotAdvanceOnMoney()
+        public IEnumerator CoreKill_OnBossLevel_IsNoOp()
         {
             yield return SetupWithLevelState();
 
-            // Set to boss level via reflection
             var field = typeof(LevelState).GetField("currentLevel",
                 System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
             field.SetValue(LevelState.Instance, 10);
             Assert.IsTrue(LevelState.Instance.IsBossLevel);
 
+            LevelState.Instance.RecordCoreKill();
+            Assert.AreEqual(0, LevelState.Instance.CoreKillsThisBlock);
+            Assert.AreEqual(10, LevelState.Instance.CurrentLevel);
+
+            TeardownWithLevelState();
+        }
+
+        [UnityTest]
+        public IEnumerator AddMoney_DoesNotAdvanceLevel()
+        {
+            yield return SetupWithLevelState();
+
             GameManager.Instance.SetMoney(0);
             GameManager.Instance.AddMoney(999999);
 
-            // Should still be on level 10 — boss blocks advancement
-            Assert.AreEqual(10, LevelState.Instance.CurrentLevel);
+            // Money should NOT cause level advancement
+            Assert.AreEqual(1, LevelState.Instance.CurrentLevel);
+            Assert.AreEqual(999999, GameManager.Instance.Money);
 
             TeardownWithLevelState();
         }
@@ -92,6 +104,7 @@ namespace MeteorIdle.Tests.PlayMode
             LevelState.Instance.BossFailed();
 
             Assert.AreEqual(11, LevelState.Instance.CurrentLevel);
+            Assert.AreEqual(0, LevelState.Instance.CoreKillsThisBlock);
 
             TeardownWithLevelState();
         }

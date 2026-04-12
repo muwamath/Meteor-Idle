@@ -10,9 +10,8 @@ public class LevelStripUI : MonoBehaviour
         {
             LevelState.Instance.OnLevelChanged += RefreshStrip;
             LevelState.Instance.OnBossFailed += RefreshStrip;
+            LevelState.Instance.OnCoreKillRecorded += UpdateProgressOnCurrentCell;
         }
-        if (GameManager.Instance != null)
-            GameManager.Instance.OnMoneyChanged += OnMoneyChanged;
         RefreshStrip();
     }
 
@@ -22,14 +21,8 @@ public class LevelStripUI : MonoBehaviour
         {
             LevelState.Instance.OnLevelChanged -= RefreshStrip;
             LevelState.Instance.OnBossFailed -= RefreshStrip;
+            LevelState.Instance.OnCoreKillRecorded -= UpdateProgressOnCurrentCell;
         }
-        if (GameManager.Instance != null)
-            GameManager.Instance.OnMoneyChanged -= OnMoneyChanged;
-    }
-
-    private void OnMoneyChanged(int money)
-    {
-        UpdateProgressOnCurrentCell();
     }
 
     public void RefreshStrip()
@@ -70,12 +63,11 @@ public class LevelStripUI : MonoBehaviour
         if (LevelState.Instance == null) return;
         if (LevelState.Instance.IsBossLevel) return;
 
+        int kills = LevelState.Instance.CoreKillsThisBlock;
         int threshold = LevelState.Instance.Threshold;
-        int money = GameManager.Instance != null ? GameManager.Instance.Money : 0;
-        float fill = threshold > 0 ? Mathf.Clamp01((float)money / threshold) : 0f;
+        float fill = LevelState.Instance.CoreKillProgress;
 
-        // Center cell is always index 2
         if (cells.Length > 2)
-            cells[2].UpdateProgress(fill, money, threshold);
+            cells[2].UpdateProgress(fill, kills, threshold);
     }
 }

@@ -6,9 +6,9 @@ public class LevelState : MonoBehaviour
 {
     public static LevelState Instance { get; private set; }
 
-    [Header("Threshold Curve")]
-    [SerializeField] private float baseCost = 10f;
-    [SerializeField] private float growthRate = 1.08f;
+    [Header("Core Kill Threshold")]
+    [SerializeField] private int baseCoreKills = 3;
+    [SerializeField] private float coreKillGrowthExponent = 0.5f;
 
     [Header("Spawn Rate Scaling")]
     [SerializeField] private float level1InitialInterval = 15f;
@@ -34,13 +34,17 @@ public class LevelState : MonoBehaviour
     [SerializeField] private float bossSize = 1.2f;
 
     [NonSerialized] private int currentLevel = 1;
+    [NonSerialized] private int coreKillsThisBlock;
 
     public int CurrentLevel => currentLevel;
     public int CurrentBlock => (currentLevel - 1) / 10;
     public int LevelInBlock => (currentLevel - 1) % 10 + 1;
     public bool IsBossLevel => LevelInBlock == 10;
 
-    public int Threshold => IsBossLevel ? 0 : Mathf.RoundToInt(baseCost * Mathf.Pow(growthRate, currentLevel - 1));
+    public int Threshold => IsBossLevel ? 0 : Mathf.RoundToInt(baseCoreKills * Mathf.Pow(currentLevel, coreKillGrowthExponent));
+
+    public int CoreKillsThisBlock => coreKillsThisBlock;
+    public float CoreKillProgress => Threshold > 0 ? Mathf.Clamp01((float)coreKillsThisBlock / Threshold) : 0f;
 
     // 0 at level 1, 1 at level 150
     private float LevelT => Mathf.Clamp01((currentLevel - 1f) / 149f);
@@ -64,6 +68,7 @@ public class LevelState : MonoBehaviour
     public event Action OnLevelChanged;
     public event Action OnBossSpawned;
     public event Action OnBossFailed;
+    public event Action OnCoreKillRecorded;
 
     private void Awake()
     {
@@ -81,18 +86,21 @@ public class LevelState : MonoBehaviour
     }
 
     /// <summary>
-    /// Called by GameManager after adding money. Returns true if the level
-    /// advances (money was at or above threshold and it's not a boss level).
+    /// Called by Meteor when a core voxel's HP hits 0. Increments the per-block
+    /// kill counter and auto-advances the level when the threshold is met.
+    /// No-op on boss levels (boss advancement goes through BossDefeated).
     /// </summary>
-    public bool TryAdvance(int currentMoney)
+    public void RecordCoreKill()
     {
-        if (IsBossLevel) return false;
-        int threshold = Threshold;
-        if (currentMoney < threshold) return false;
-
-        currentLevel++;
-        OnLevelChanged?.Invoke();
-        return true;
+        if (IsBossLevel) return;
+        coreKillsThisBlock++;
+        OnCoreKillRecorded?.Invoke();
+        if (coreKillsThisBlock >= Threshold)
+        {
+            coreKillsThisBlock = 0;
+            currentLevel++;
+            OnLevelChanged?.Invoke();
+        }
     }
 
     public void NotifyBossSpawned()
@@ -102,6 +110,7 @@ public class LevelState : MonoBehaviour
 
     public void BossDefeated()
     {
+        coreKillsThisBlock = 0;
         currentLevel++;
         OnLevelChanged?.Invoke();
     }
@@ -110,6 +119,7 @@ public class LevelState : MonoBehaviour
     {
         int blockStart = CurrentBlock * 10 + 1;
         currentLevel = blockStart;
+        coreKillsThisBlock = 0;
         OnBossFailed?.Invoke();
         OnLevelChanged?.Invoke();
     }

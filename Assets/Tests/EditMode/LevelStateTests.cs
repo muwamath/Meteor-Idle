@@ -58,73 +58,108 @@ namespace MeteorIdle.Tests.Editor
         }
 
         [Test]
-        public void Threshold_Level1_IsBaseCost()
-        {
-            // baseCost=10, growthRate=1.08, level 1: 10 * 1.08^0 = 10
-            Assert.AreEqual(10, _state.Threshold);
-        }
-
-        [Test]
-        public void Threshold_ScalesExponentially()
-        {
-            SetLevel(5);
-            int expected = Mathf.RoundToInt(10f * Mathf.Pow(1.08f, 4));
-            Assert.AreEqual(expected, _state.Threshold);
-        }
-
-        [Test]
         public void Threshold_BossLevel_IsZero()
         {
             SetLevel(10);
             Assert.AreEqual(0, _state.Threshold);
         }
 
+        // --- Core kill advancement tests ---
+
         [Test]
-        public void TryAdvance_BelowThreshold_ReturnsFalse()
+        public void Threshold_Level1_ReturnsBaseCoreKills()
         {
-            Assert.IsFalse(_state.TryAdvance(5));
+            // baseCoreKills=3, exponent=0.5: 3 * Pow(1, 0.5) = 3
+            Assert.AreEqual(3, _state.Threshold);
+        }
+
+        [Test]
+        public void Threshold_ScalesWithLevel()
+        {
+            SetLevel(10);
+            // Not a boss level check — level 10 IS boss. Use level 9.
+            SetLevel(9);
+            int expected = Mathf.RoundToInt(3f * Mathf.Pow(9f, 0.5f)); // ~9
+            Assert.AreEqual(expected, _state.Threshold);
+        }
+
+        [Test]
+        public void RecordCoreKill_IncrementsCounter()
+        {
+            _state.RecordCoreKill();
+            Assert.AreEqual(1, _state.CoreKillsThisBlock);
+        }
+
+        [Test]
+        public void RecordCoreKill_BelowThreshold_DoesNotAdvance()
+        {
+            _state.RecordCoreKill();
             Assert.AreEqual(1, _state.CurrentLevel);
         }
 
         [Test]
-        public void TryAdvance_AtThreshold_AdvancesAndReturnsTrue()
+        public void RecordCoreKill_AtThreshold_AdvancesLevel()
         {
-            Assert.IsTrue(_state.TryAdvance(10));
+            int threshold = _state.Threshold; // 3 at level 1
+            for (int i = 0; i < threshold; i++)
+                _state.RecordCoreKill();
             Assert.AreEqual(2, _state.CurrentLevel);
+            Assert.AreEqual(0, _state.CoreKillsThisBlock);
         }
 
         [Test]
-        public void TryAdvance_AboveThreshold_AdvancesAndReturnsTrue()
-        {
-            Assert.IsTrue(_state.TryAdvance(50));
-            Assert.AreEqual(2, _state.CurrentLevel);
-        }
-
-        [Test]
-        public void TryAdvance_AtBossLevel_ReturnsFalse()
+        public void RecordCoreKill_AtBossLevel_IsNoOp()
         {
             SetLevel(10);
             Assert.IsTrue(_state.IsBossLevel);
-            Assert.IsFalse(_state.TryAdvance(999999));
+            _state.RecordCoreKill();
+            Assert.AreEqual(0, _state.CoreKillsThisBlock);
         }
 
         [Test]
-        public void TryAdvance_FiresOnLevelChanged()
+        public void RecordCoreKill_FiresOnCoreKillRecorded()
         {
             int firedCount = 0;
-            _state.OnLevelChanged += () => firedCount++;
-            _state.TryAdvance(10);
+            _state.OnCoreKillRecorded += () => firedCount++;
+            _state.RecordCoreKill();
             Assert.AreEqual(1, firedCount);
         }
 
         [Test]
-        public void TryAdvance_BelowThreshold_DoesNotFireEvent()
+        public void RecordCoreKill_OnAdvance_FiresOnLevelChanged()
         {
             int firedCount = 0;
             _state.OnLevelChanged += () => firedCount++;
-            _state.TryAdvance(5);
-            Assert.AreEqual(0, firedCount);
+            int threshold = _state.Threshold;
+            for (int i = 0; i < threshold; i++)
+                _state.RecordCoreKill();
+            Assert.AreEqual(1, firedCount);
         }
+
+        [Test]
+        public void BossFailed_ResetsCoreKillCounter()
+        {
+            _state.RecordCoreKill();
+            _state.RecordCoreKill();
+            Assert.AreEqual(2, _state.CoreKillsThisBlock);
+            SetLevel(10);
+            _state.BossFailed();
+            Assert.AreEqual(0, _state.CoreKillsThisBlock);
+        }
+
+        [Test]
+        public void BossDefeated_ResetsCoreKillCounter()
+        {
+            SetLevel(10);
+            // Can't RecordCoreKill on boss level, so set counter via reflection
+            var field = typeof(LevelState).GetField("coreKillsThisBlock",
+                System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+            field.SetValue(_state, 5);
+            _state.BossDefeated();
+            Assert.AreEqual(0, _state.CoreKillsThisBlock);
+        }
+
+        // --- Boss/block tests ---
 
         [Test]
         public void BossDefeated_AdvancesToNextBlock()
