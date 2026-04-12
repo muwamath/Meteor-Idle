@@ -1,6 +1,6 @@
 # Meteor Idle — Iteration Roadmap
 
-Living document. Last revised: 2026-04-11 (Iter 2 shipped).
+Living document. Last revised: 2026-04-12 (Iter 3 shipped).
 
 This is the ordered plan for the next several iterations, pulled from `todo.md` (sections above `# Future`). Each iteration is a branch (`iter/<name>`) with its own spec + plan when it's large enough to warrant one. Sized for the project's per-branch overhead (tests, play verify, code-reviewer, WebGL deploy).
 
@@ -68,42 +68,13 @@ Fix two visible targeting problems:
 
 ---
 
-## Iter 1 — Asteroid cores
+## Iter 1 — Asteroid cores ✅ shipped 2026-04-11
 
-**Branch:** `iter/asteroid-cores`
-**Size:** full spec + plan, ~6–8 phases
-**Depends on:** Iter 0 (so aim fixes ship first and the "weapons aim at cores" requirement lands cleanly on top)
+**Branch:** `iter/asteroid-cores` (merged to `main`)
 
-### Goal
+### What shipped
 
-Asteroids have a **core** (1+ voxels) surrounded by **dirt**. Dirt destruction is free; money comes from the core. Core voxels are visually distinct, harder to break (HP > 1), and weapons prefer to target core voxels.
-
-### Scope
-
-- Voxel grid: `bool[10,10]` → `VoxelKind[10,10]` (or parallel `int[,] hp`). Kinds: `Empty`, `Dirt`, `Core`.
-- `VoxelMeteorGenerator.Generate` picks core cell(s) at center-ish region, surrounds with dirt per seed.
-- Per-voxel HP: dirt = 1, core = N (configurable). `ApplyBlast`/`ApplyTunnel` decrement HP; only transition to `Empty` when HP hits 0.
-- Visuals: core cells use a distinct color palette that reads clearly against dirt. Follows the voxel aesthetic rule — flat blocks, hard edges, 1-px dark outline.
-- Targeting: `PickRandomPresentVoxel` → `PickCoreVoxel` (fallback to any live if no core left). Missiles home to core; railgun aims through dirt to hit core.
-- Economy: `Meteor.ApplyBlast`/`ApplyTunnel` return `(destroyedDirt, destroyedCore)`. Money only paid for core destruction. (Exact payout formula locked in Iter 3.)
-- Tests: every existing `Meteor*Tests.cs` file needs updates. New tests for core HP, core targeting, core-only payout.
-
-### Phases (7, respecting the sizing rule)
-
-1. **Voxel kind enum + grid representation + generator change.** `VoxelMeteorGenerator` and `Meteor` grid storage. EditMode tests for determinism and core placement. ~3 files.
-2. **HP model + `ApplyBlast` HP decrement.** `Meteor.ApplyBlast` walks the blast circle, decrements HP, only clears on 0. Tests for multi-hit kills. ~2 files.
-3. **`ApplyTunnel` HP decrement + weight-budget interaction.** Railgun tunneling consumes weight on *damage dealt*, not voxel-cleared (design call to confirm in spec). Tests for partial core destruction. ~2 files.
-4. **Core visuals — procedural art + renderer paint.** Update the 15×15 block paint in `Meteor` so core cells pull from a core palette. Procedural PNG regen via `execute_code`. Visual verify (read the generated PNG, pause for user inspection per the voxel aesthetic rule). ~2 files + art assets.
-5. **Targeting picks core voxels.** `Meteor.PickCoreVoxel`, `MissileTurret.Fire` uses it, `RailgunTurret` aim uses it. Tests for core-priority, dirt-fallback when coreless. ~3 files.
-6. **Economy split (dirt=0, core=value).** `Meteor` returns core-destroyed count, missile/railgun payout uses that. Tests updated. Tuning pass so the game still feels playable with the new flow. ~3 files.
-7. **Code-reviewer agent + manual play verify + merge + WebGL deploy.**
-
-### Manual play-verify gates
-
-- Core voxels are immediately, obviously distinguishable from dirt at a glance.
-- Missiles home to core through dirt; railgun tunnels to core.
-- Destroying a meteor still pays out; destroying only dirt pays nothing (placeholder for Iter 3's floating-core change).
-- No test regressions in either suite.
+Asteroids now have a **core** (1+ voxels) surrounded by **dirt**. Per-voxel `VoxelKind` enum (`Empty`, `Dirt`, `Core`) + `int[,] hp` grid. Core voxels are visually distinct (red accent), harder to break (HP > 1), and weapons prefer to target core voxels via `PickCoreVoxel`. `ApplyBlast`/`ApplyTunnel` decrement HP and only clear on 0. Economy split: dirt = $0, core = value (later rerouted through drones in Iter 3). 7 phases shipped.
 
 ---
 
@@ -138,46 +109,46 @@ The original "asteroid types" plan called for whole-asteroid type reskins (ice /
 
 ---
 
-## Iter 3 — Economy rework (drones + floating cores)
+## Iter 3 — Economy rework (drones + floating cores) ✅ shipped 2026-04-12
 
-**Branch:** `iter/drone-economy`
-**Size:** full spec + plan, ~10 phases
-**Depends on:** Iter 1 (cores), Iter 2 optional
+**Branch:** `iter/drone-economy` (merged to `main@36dbf87`)
+**Spec:** [docs/superpowers/specs/2026-04-11-drone-economy-design.md](specs/2026-04-11-drone-economy-design.md)
+**Plan:** [docs/superpowers/plans/2026-04-11-drone-economy.md](plans/2026-04-11-drone-economy.md)
 
-### Goal
+### What shipped
 
-Kill the "instant money on voxel break" flow. When a core is destroyed, it doesn't pay — it **floats slowly down the screen**, and a **collector drone** flies out from base, picks it up, evades live meteors on the way, and brings it back. Money is paid on drop-off at base.
+Killed the "instant money on voxel break" flow. Core voxels now spawn floating **CoreDrop** entities. **Collector drones** launch from **DroneBays**, fly to CoreDrops, pick them up, deliver them to the **Collector** (a rock-grinder with animated gold teeth at center of the bottom row), then loop for more until battery runs low. Money is paid on deposit at the Collector — never on voxel break.
 
-### Scope
+**Bottom row layout:** `[base][bay][base][collector][base][bay][base]` — 4 weapon slots, 2 drone bays (both pre-built with 1 drone each), 1 Collector.
 
-- New `CoreDrop` entity — physics-free floating object, slow downward drift, sprite = dead core visual.
-- New `CollectorDrone` entity — pathing from base to target `CoreDrop`, evasion against live `Meteor` colliders, pickup, return to base, deposit. Voxel-aesthetic sprite with puff-of-gas particles.
-- Drone upgrades: speed, capacity, cooldown between missions. New `DroneStats` ScriptableObject + `DroneUpgradePanel` UI.
-- Base visualization: two drones sit between the three weapon slots. `SlotManager` or a new `DroneBay` owns them.
-- Meteor → drop flow: `Meteor.ApplyBlast`/`ApplyTunnel` on a core-kill spawns a `CoreDrop` at the core's world position instead of paying directly.
-- Starting state: player always has one drone. Drones are not sellable.
-- Tests: EditMode for pathing math, upgrade formulas; PlayMode for the full pickup-return-deposit loop.
+### Architecture
 
-### Phases (10, respecting the sizing rule)
+- **CoreDrop** (`Assets/Scripts/Drones/CoreDrop.cs`) — floating entity, drifts down, claimed by drones, consumed on pickup.
+- **CollectorDrone** (`Assets/Scripts/Drones/CollectorDrone.cs`) — 8-state machine (Idle → Launching → Seeking → Pickup → Delivering → Depositing → Returning → Docking). Custom physics via `DroneBody` (exponential damping, explicit Euler integration). Meteor avoidance, contact push kick. Hides behind bay (sortingOrder 1) when idle.
+- **Collector** (`Assets/Scripts/Drones/Collector.cs`) — single rock-grinder deposit point. Animated teeth (4-step quantized rotation). `IPointerClickHandler` stub for future upgrade panel.
+- **DroneBay** (`Assets/Scripts/Drones/DroneBay.cs`) — launch/catch/recharge only (no deposits). 4-keyframe quantized door animation. `ICollectorDroneEnvironment` implementation. Drone count label (SerializeField exists, TMP child not yet wired in prefab).
+- **DroneBody** (`Assets/Scripts/Drones/DroneBody.cs`) — plain C# physics integrator. Exponential damping, thrust steering, avoidance repulsion, push kick, limp-home mode.
+- **DroneStats/BayStats** — ScriptableObject upgrade stats mirroring TurretStats/RailgunStats pattern.
+- **BayManager** — spawns 2 pre-built bays, wires Collector reference, responds to DronesPerBay upgrades.
+- **PanelManager** — static exclusive-panel manager, only one overlay visible at a time.
+- **`VoxelMaterial.paysOnBreak`** flag — Core material has `paysOnBreak=false`, directing payout through drones.
 
-1. **`CoreDrop` entity + pool + slow downward drift.** No visuals beyond a placeholder color. Core-kill in `Meteor` spawns a `CoreDrop` instead of paying. EditMode test for drift math. ~3 files.
-2. **`CollectorDrone` MonoBehaviour — straight-line pathing + pickup state machine (Idle → Seek → Carry → Return → Deposit → Idle).** No evasion yet. Deposit calls `GameManager.AddMoney`. EditMode test on the state machine. ~2 files.
-3. **Evasion against live meteors.** Simple steer-away within a safety radius. EditMode test for avoidance math, PlayMode smoke test. ~2 files.
-4. **Drone visuals (voxel-style sprite) + puff-of-gas particles.** Procedural PNG generation. Visual verify pause. ~2 files + art.
-5. **`DroneStats` ScriptableObject + stats formulas (speed, capacity, cooldown).** Mirror the `TurretStats`/`RailgunStats` pattern. EditMode tests for `NextCost`/`CurrentValue`/`ApplyUpgrade`. ~2 files.
-6. **`DroneUpgradePanel` UI + click routing.** Opens from clicking a drone in the base bay. Follows the `MissileUpgradePanel`/`RailgunUpgradePanel` pattern. ~3 files.
-7. **`DroneBay` / integration into `SlotManager`.** Two drones sit visually between the weapon slots. Cooldowns gate new missions. ~2 files.
-8. **Tuning pass — starting money flow feels slow but satisfying.** Data-only changes. Manual play verify.
-9. **PlayMode end-to-end test:** spawn meteor → kill core → drop floats → drone picks up → drone deposits → money increases. ~1 new test file.
-10. **Code-reviewer + manual play verify + merge + WebGL deploy.**
+### Economy
 
-### Manual play-verify gates
+All prices flattened to **$1 per purchase** (baseCost=1, costGrowth=1) across all stats + build costs. Placeholder until economy overhaul.
 
-- Money only goes up when a drone deposits — never on voxel break.
-- Drones visibly dodge meteors on the way to pickups.
-- Drone upgrades meaningfully change money-per-minute curve.
-- The "early game is slow, mid game accelerates" feel is present.
-- No frame drops with 2 drones + 20 meteors + 10 drops on screen.
+### Test coverage
+
+189 EditMode + 42 PlayMode = 231 tests, all green. New tests: DroneBody physics, state machine transitions (including Delivering/Depositing flow), DroneStats/BayStats formulas, DroneBay door animation, CoreDrop lifecycle, paysOnBreak isolation, GameManager drop registry, Meteor core-drop spawning, end-to-end drone collection, drone meteor avoidance.
+
+### Deferred items (known gaps from code review)
+
+- Drone stat upgrades (Thrust, Battery, Cargo) don't propagate to existing drones — only affects new spawns.
+- Battery recharge ignores ReloadSpeed upgrade (hardcoded `battery += dt`).
+- ThrusterTrail and CoreDrop use Instantiate/Destroy, not pooling — GC pressure at high drone/drop counts.
+- Bay drone count TMP label not yet wired in DroneBay prefab.
+- `BuildBayPanel.cs` is dead code (bays are pre-built, no purchasing).
+- Collector upgrades (deposit multiplier, attraction range) stub exists but no panel yet.
 
 ---
 
