@@ -95,6 +95,14 @@ namespace MeteorIdle.Tests.PlayMode
                     System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
                 f?.SetValue(meteor, registry);
             }
+            var coreDropPrefab = UnityEditor.AssetDatabase.LoadAssetAtPath<CoreDrop>(
+                "Assets/Prefabs/CoreDrop.prefab");
+            if (coreDropPrefab != null)
+            {
+                var f = typeof(Meteor).GetField("coreDropPrefab",
+                    System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+                f?.SetValue(meteor, coreDropPrefab);
+            }
 #endif
 
             meteor.Spawn(null, position, seed, scale);
@@ -114,6 +122,22 @@ namespace MeteorIdle.Tests.PlayMode
 #endif
         }
 
+        protected (CollectorDrone drone, DroneTestEnvironment env) SpawnTestDroneWithEnv(
+            Vector3 position,
+            Vector3 bayPosition)
+        {
+            var env = new DroneTestEnvironment { BayPosition = bayPosition, BayDoorsOpen = true };
+            var go = new GameObject("TestDrone", typeof(CollectorDrone));
+            go.transform.position = position;
+            var drone = go.GetComponent<CollectorDrone>();
+            drone.Initialize(env,
+                thrust: 8f, damping: 0.5f,
+                batteryCapacity: 60f, cargoCapacity: 1,
+                reserveThresholdFraction: 0.4f,
+                pickupRadius: 0.4f, dockRadius: 0.5f);
+            return (drone, env);
+        }
+
         protected RailgunRound SpawnTestRailgunRound(
             Vector3 spawnPos,
             Vector2 direction,
@@ -131,6 +155,34 @@ namespace MeteorIdle.Tests.PlayMode
 #else
             throw new System.NotSupportedException("TestRailgunRound spawn is editor-only");
 #endif
+        }
+    }
+
+    public class DroneTestEnvironment : ICollectorDroneEnvironment
+    {
+        public Vector3 BayPosition { get; set; }
+        public bool BayDoorsOpen { get; set; }
+        public int TotalDeposited;
+        public void RequestOpenDoors()  { BayDoorsOpen = true; }
+        public void RequestCloseDoors() { BayDoorsOpen = false; }
+        public void Deposit(int value)
+        {
+            TotalDeposited += value;
+            if (GameManager.Instance != null) GameManager.Instance.AddMoney(value);
+        }
+        public CoreDrop FindNearestUnclaimedDrop(Vector3 from, float maxDistance)
+        {
+            if (GameManager.Instance == null) return null;
+            CoreDrop best = null;
+            float bestD = float.MaxValue;
+            foreach (var d in GameManager.Instance.ActiveDrops)
+            {
+                if (d == null || d.IsClaimed || !d.IsAlive) continue;
+                float dist = Vector3.Distance(from, d.Position);
+                if (dist > maxDistance) continue;
+                if (dist < bestD) { bestD = dist; best = d; }
+            }
+            return best;
         }
     }
 }
