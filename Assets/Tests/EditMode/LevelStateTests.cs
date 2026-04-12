@@ -185,6 +185,78 @@ namespace MeteorIdle.Tests.Editor
             Assert.AreEqual(10, _state.LevelInBlock);
         }
 
+        // --- Difficulty multiplier tests ---
+
+        [Test]
+        public void SpawnInterval_Level1_IsCalm()
+        {
+            Assert.Greater(_state.SpawnInitialInterval, 10f);
+            Assert.Greater(_state.SpawnMinInterval, 5f);
+        }
+
+        [Test]
+        public void SpawnInterval_HighLevel_IsFaster()
+        {
+            float level1Min = _state.SpawnMinInterval;
+            SetLevel(100);
+            Assert.Less(_state.SpawnMinInterval, level1Min);
+        }
+
+        [Test]
+        public void MeteorSizeRange_Level1_IsSmall()
+        {
+            var (min, max) = _state.MeteorSizeRange;
+            Assert.LessOrEqual(max, 0.7f);
+        }
+
+        [Test]
+        public void MeteorSizeRange_HighLevel_IsLarger()
+        {
+            SetLevel(80);
+            var (min, max) = _state.MeteorSizeRange;
+            Assert.Greater(max, 0.9f);
+        }
+
+        [Test]
+        public void HpMultiplier_Level1_Is1()
+        {
+            Assert.AreEqual(1f, _state.HpMultiplier, 0.01f);
+        }
+
+        [Test]
+        public void HpMultiplier_ScalesWithLevel()
+        {
+            SetLevel(50);
+            Assert.Greater(_state.HpMultiplier, 1f);
+        }
+
+        [Test]
+        public void CoreValueMultiplier_ScalesWithLevel()
+        {
+            SetLevel(50);
+            Assert.Greater(_state.CoreValueMultiplier, 1f);
+        }
+
+        [Test]
+        public void CoreCountBonus_Level1_Is0()
+        {
+            Assert.AreEqual(0, _state.CoreCountBonus);
+        }
+
+        [Test]
+        public void CoreCountBonus_Level26_Is1()
+        {
+            SetLevel(26);
+            Assert.AreEqual(1, _state.CoreCountBonus);
+        }
+
+        [Test]
+        public void CoreCountBonus_Level100_IsPositive()
+        {
+            SetLevel(100);
+            Assert.Greater(_state.CoreCountBonus, 0);
+        }
+
         private void SetLevel(int level)
         {
             var field = typeof(LevelState).GetField("currentLevel",
