@@ -39,6 +39,9 @@ public class CollectorDrone : MonoBehaviour
     {
         this.env = env;
         if (body == null) body = new DroneBody(transform.position, thrust, damping);
+        body.Position = transform.position;
+        body.Velocity = Vector2.zero;
+        body.LimpHomeMode = false;
         body.ThrustCap = thrust;
         body.DampingPerSec = damping;
         this.batteryCapacity = batteryCapacity;
@@ -160,5 +163,33 @@ public class CollectorDrone : MonoBehaviour
         env.RequestCloseDoors();
         body.LimpHomeMode = false;
         State = DroneState.Idle;
+    }
+
+    private void Update()
+    {
+        float dt = Time.deltaTime;
+        if (body == null || env == null) { Tick(dt); return; }
+
+        body.DesiredThrust = ComputeDesiredThrust();
+        Tick(dt);
+        body.Integrate(dt);
+        transform.position = new Vector3(body.Position.x, body.Position.y, 0f);
+    }
+
+    private Vector2 ComputeDesiredThrust()
+    {
+        switch (State)
+        {
+            case DroneState.Seeking:
+            case DroneState.Pickup:
+                if (TargetDrop != null && TargetDrop.IsAlive)
+                    return ((Vector2)(TargetDrop.Position - transform.position)).normalized;
+                return Vector2.zero;
+            case DroneState.Returning:
+            case DroneState.Docking:
+                return ((Vector2)(env.BayPosition - transform.position)).normalized;
+            default:
+                return Vector2.zero;
+        }
     }
 }
