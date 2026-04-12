@@ -1,7 +1,9 @@
 using UnityEngine;
 
+[RequireComponent(typeof(CircleCollider2D))]
 public class CollectorDrone : MonoBehaviour
 {
+    [SerializeField] private float contactPushMagnitude = 2.5f;
     private ICollectorDroneEnvironment env;
     private DroneBody body;
 
@@ -30,6 +32,17 @@ public class CollectorDrone : MonoBehaviour
     private void Awake()
     {
         body = new DroneBody(transform.position, thrustCap: 4f, dampingPerSec: 1f);
+        var col = GetComponent<CircleCollider2D>();
+        if (col != null) col.isTrigger = true;
+    }
+
+    private void OnTriggerEnter2D(Collider2D other)
+    {
+        var meteor = other.GetComponentInParent<Meteor>();
+        if (meteor == null) return;
+        Vector2 away = ((Vector2)(transform.position - meteor.transform.position)).normalized;
+        if (away.sqrMagnitude < 0.001f) away = Vector2.up;
+        body?.ApplyPushKick(away * contactPushMagnitude);
     }
 
     public void Initialize(
